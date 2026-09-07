@@ -1,0 +1,282 @@
+import { Listing, User } from '../types';
+
+const API_BASE = '/api';
+
+export const api = {
+  // Listings
+  async getListings(params?: {
+    status?: string;
+    category?: string;
+    location?: string;
+    search?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    sort?: string;
+    userId?: string;
+  }): Promise<Listing[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.category) searchParams.set('category', params.category);
+    if (params?.location) searchParams.set('location', params.location);
+    if (params?.search) searchParams.set('search', params.search);
+    if (params?.minPrice !== undefined) searchParams.set('minPrice', params.minPrice.toString());
+    if (params?.maxPrice !== undefined) searchParams.set('maxPrice', params.maxPrice.toString());
+    if (params?.sort) searchParams.set('sort', params.sort);
+    if (params?.userId) searchParams.set('userId', params.userId);
+
+    const res = await fetch(`${API_BASE}/listings?${searchParams.toString()}`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch listings: ${res.statusText}`);
+    }
+    return res.json();
+  },
+
+  async getListingById(id: string): Promise<Listing> {
+    const res = await fetch(`${API_BASE}/listings/${id}`);
+    if (!res.ok) {
+      throw new Error('Listing not found');
+    }
+    return res.json();
+  },
+
+  async getListing(id: string): Promise<Listing> {
+    return this.getListingById(id);
+  },
+
+  async createListing(data: Partial<Listing>): Promise<Listing> {
+    const res = await fetch(`${API_BASE}/listings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to create listing');
+    }
+    return res.json();
+  },
+
+  async updateListing(id: string, data: Partial<Listing>): Promise<Listing> {
+    const res = await fetch(`${API_BASE}/listings/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to update listing');
+    }
+    return res.json();
+  },
+
+  async approveListing(id: string): Promise<Listing> {
+    const res = await fetch(`${API_BASE}/listings/${id}/approve`, {
+      method: 'PUT',
+    });
+    if (!res.ok) throw new Error('Failed to approve listing');
+    return res.json();
+  },
+
+  async rejectListing(id: string): Promise<Listing> {
+    const res = await fetch(`${API_BASE}/listings/${id}/reject`, {
+      method: 'PUT',
+    });
+    if (!res.ok) throw new Error('Failed to reject listing');
+    return res.json();
+  },
+
+  async toggleFeatureListing(id: string): Promise<Listing> {
+    const res = await fetch(`${API_BASE}/listings/${id}/feature`, {
+      method: 'PUT',
+    });
+    if (!res.ok) throw new Error('Failed to toggle feature');
+    return res.json();
+  },
+
+  async incrementView(id: string): Promise<{ views: number }> {
+    const res = await fetch(`${API_BASE}/listings/${id}/view`, {
+      method: 'PUT',
+    });
+    if (!res.ok) throw new Error('Failed to increment view');
+    return res.json();
+  },
+
+  async deleteListing(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/listings/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) throw new Error('Failed to delete listing');
+    return res.json();
+  },
+
+  // Auth
+  async adminLogin(password: string): Promise<{ success: boolean; role: string }> {
+    const res = await fetch(`${API_BASE}/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Admin login failed');
+    }
+    const data = await res.json();
+    try {
+      localStorage.setItem('huta_admin', 'true');
+    } catch {
+      // ignore
+    }
+    return data;
+  },
+
+  isAdmin(): boolean {
+    try {
+      return localStorage.getItem('huta_admin') === 'true';
+    } catch {
+      return false;
+    }
+  },
+
+  adminLogout(): void {
+    try {
+      localStorage.removeItem('huta_admin');
+    } catch {
+      // ignore
+    }
+  },
+
+  async changeAdminPassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/admin/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to change admin password');
+    }
+    return res.json();
+  },
+
+  async userRegister(data: {
+    username: string;
+    fullname?: string;
+    email?: string;
+    password: string;
+    securityQuestion: string;
+    securityAnswer: string;
+  }): Promise<User> {
+    const res = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Registration failed');
+    }
+    const user: User = await res.json();
+    try {
+      localStorage.setItem('huta_user', JSON.stringify(user));
+    } catch {
+      // ignore
+    }
+    return user;
+  },
+
+  async userLogin(username: string, password: string): Promise<User> {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Login failed');
+    }
+    const user: User = await res.json();
+    try {
+      localStorage.setItem('huta_user', JSON.stringify(user));
+    } catch {
+      // ignore
+    }
+    return user;
+  },
+
+  getCurrentUser(): User | null {
+    try {
+      const raw = localStorage.getItem('huta_user');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  userLogout(): void {
+    try {
+      localStorage.removeItem('huta_user');
+    } catch {
+      // ignore
+    }
+  },
+
+  async getSecurityQuestion(username: string): Promise<{ question: string }> {
+    const res = await fetch(`${API_BASE}/auth/get-question`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'User not found');
+    }
+    return res.json();
+  },
+
+  async resetPassword(username: string, answer: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, answer, newPassword }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Password reset failed');
+    }
+    return res.json();
+  },
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`${API_BASE}/auth/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, currentPassword, newPassword }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Password update failed');
+    }
+    return res.json();
+  },
+
+  // AI Assistant
+  async suggestDescription(params: {
+    title: string;
+    category: string;
+    price?: number;
+    location?: string;
+    condition?: string;
+    notes?: string;
+  }): Promise<{ description: string; source: string }> {
+    const res = await fetch(`${API_BASE}/ai/suggest-description`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to generate description');
+    }
+    return res.json();
+  }
+};
