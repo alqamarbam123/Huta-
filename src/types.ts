@@ -31,7 +31,15 @@ export interface CategoryInfo {
   iconName: string;
 }
 
-export type ViewTab = 'marketplace' | 'admin' | 'dashboard' | 'admin_dashboard' | 'user_dashboard';
+export type ViewTab =
+  | 'marketplace'
+  | 'huta_in'
+  | 'categories'
+  | 'user_dashboard'
+  | 'admin_dashboard'
+  | 'more'
+  | 'admin'
+  | 'dashboard';
 
 export interface ChatConversation {
   id: string;

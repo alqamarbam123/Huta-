@@ -17,6 +17,7 @@ interface CategoryGridProps {
   currentCategory: string;
   onSelectCategory: (category: string) => void;
   listings: Listing[];
+  onViewAllCategories?: () => void;
 }
 
 interface CategoryMeta {
@@ -65,6 +66,7 @@ export const CategoryGrid: React.FC<CategoryGridProps> = ({
   currentCategory,
   onSelectCategory,
   listings,
+  onViewAllCategories,
 }) => {
   // Calculate live ads count per category
   const counts: Record<string, number> = { All: 0 };
@@ -172,6 +174,21 @@ export const CategoryGrid: React.FC<CategoryGridProps> = ({
           );
         })}
       </motion.div>
+
+      {onViewAllCategories && (
+        <div className="mt-6 flex justify-center">
+          <button
+            type="button"
+            id="view-all-categories-banner-btn"
+            onClick={onViewAllCategories}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white hover:bg-gray-50 text-[#0A2540] hover:text-[#FF5A36] text-xs sm:text-sm font-bold border border-gray-200 shadow-sm hover:shadow transition-all cursor-pointer group"
+          >
+            <LayoutGrid className="w-4 h-4 text-[#FF5A36] group-hover:scale-110 transition-transform" />
+            <span>Explore All Categories & Professional Services Directory</span>
+            <span className="text-[#FF5A36] font-extrabold ml-1">→</span>
+          </button>
+        </div>
+      )}
     </section>
   );
 };

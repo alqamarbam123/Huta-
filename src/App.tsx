@@ -15,6 +15,10 @@ import { AuthModals } from './components/AuthModals';
 import { ToastContainer, ToastMessage } from './components/Toast';
 import { Footer } from './components/Footer';
 import { ChatDrawer } from './components/ChatDrawer';
+import { BottomNav } from './components/BottomNav';
+import { AllCategoriesPage } from './components/AllCategoriesPage';
+import { HutaInPage } from './components/HutaInPage';
+import { MorePage } from './components/MorePage';
 import { testConnection } from './firebase';
 
 export default function App() {
@@ -371,7 +375,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F4F5F7] text-[#181920]">
+    <div className="min-h-screen flex flex-col bg-[#F4F5F7] text-[#181920] pb-16 sm:pb-20">
       {/* Toast Notification Layer */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
@@ -379,18 +383,6 @@ export default function App() {
       <Navbar
         currentTab={currentTab}
         onSelectTab={(tab) => setCurrentTab(tab)}
-        currentUser={currentUser}
-        isAdminLoggedIn={isAdminLoggedIn}
-        onOpenUserAuth={() => setIsUserAuthOpen(true)}
-        onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
-        onOpenPostAd={handleOpenPostAd}
-        onLogoutUser={handleLogoutUser}
-        onLogoutAdmin={handleLogoutAdmin}
-        onChangePassword={() => setIsChangePasswordOpen(true)}
-        onOpenChat={() => {
-          setChatTargetListing(null);
-          setIsChatOpen(true);
-        }}
       />
 
       {/* Main Views Container */}
@@ -416,6 +408,7 @@ export default function App() {
               currentCategory={selectedCategory}
               onSelectCategory={setSelectedCategory}
               listings={listings}
+              onViewAllCategories={() => setCurrentTab('categories')}
             />
 
             {/* Classified Advertisements Grid */}
@@ -429,6 +422,49 @@ export default function App() {
               isLoading={isLoading}
             />
           </div>
+        )}
+
+        {currentTab === 'huta_in' && (
+          <HutaInPage
+            onBackToHome={() => setCurrentTab('marketplace')}
+            onOpenPostAd={handleOpenPostAd}
+            onSelectCategory={(cat) => {
+              setSelectedCategory(cat);
+              setCurrentTab('marketplace');
+            }}
+            onToast={showToast}
+          />
+        )}
+
+        {currentTab === 'categories' && (
+          <AllCategoriesPage
+            onBack={() => setCurrentTab('marketplace')}
+            onSelectCategory={(cat) => {
+              setSelectedCategory(cat);
+              setCurrentTab('marketplace');
+            }}
+            listings={listings}
+          />
+        )}
+
+        {currentTab === 'more' && (
+          <MorePage
+            currentUser={currentUser}
+            isAdminLoggedIn={isAdminLoggedIn}
+            favoritesCount={favorites.length}
+            onSelectTab={(tab) => setCurrentTab(tab)}
+            onOpenUserAuth={() => setIsUserAuthOpen(true)}
+            onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+            onOpenPostAd={handleOpenPostAd}
+            onOpenChat={() => {
+              setChatTargetListing(null);
+              setIsChatOpen(true);
+            }}
+            onChangePassword={() => setIsChangePasswordOpen(true)}
+            onLogoutUser={handleLogoutUser}
+            onLogoutAdmin={handleLogoutAdmin}
+            onBackToHome={() => setCurrentTab('marketplace')}
+          />
         )}
 
         {currentTab === 'user_dashboard' && (
@@ -534,6 +570,16 @@ export default function App() {
         }}
         onOpenPostAd={handleOpenPostAd}
         onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+      />
+
+      {/* Sticky Bottom Navigation Bar (Image 1 style) */}
+      <BottomNav
+        currentTab={currentTab}
+        onSelectTab={(tab) => {
+          setCurrentTab(tab);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        onOpenPostAd={handleOpenPostAd}
       />
     </div>
   );
