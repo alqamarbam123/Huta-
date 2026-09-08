@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { EventItem } from '../types';
+export type { EventItem };
 import {
   Calendar,
   MapPin,
@@ -264,26 +266,6 @@ export const HUTA_ALL_CATEGORIES: HutaCategoryItem[] = [
   },
 ];
 
-export interface EventItem {
-  id: string;
-  title: string;
-  category: 'Entertainment' | 'Exhibitions' | 'Food & Culture' | 'Sports' | 'Tech';
-  district: 'Colombo' | 'Galle' | 'Kandy' | 'Jaffna' | 'Negombo' | 'Other';
-  date: string;
-  month: string;
-  day: string;
-  time: string;
-  location: string;
-  venue: string;
-  image: string;
-  badge: string;
-  price: string;
-  isFree: boolean;
-  attendees: number;
-  description: string;
-  organizer: string;
-}
-
 const EVENTS_DATA: EventItem[] = [
   {
     id: 'cardcon_lanka',
@@ -444,6 +426,7 @@ interface HutaInPageProps {
   onOpenPostAd: () => void;
   onSelectCategory?: (category: string) => void;
   onToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
+  events?: EventItem[];
 }
 
 export const HutaInPage: React.FC<HutaInPageProps> = ({
@@ -451,7 +434,12 @@ export const HutaInPage: React.FC<HutaInPageProps> = ({
   onOpenPostAd,
   onSelectCategory,
   onToast,
+  events,
 }) => {
+  const allEvents = events && events.length > 0 ? events : EVENTS_DATA;
+  const spotlightEvents = allEvents.filter(e => e.isSpotlight);
+  const displaySpotlight = spotlightEvents.length > 0 ? spotlightEvents : allEvents.slice(0, 4);
+
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -484,7 +472,7 @@ export const HutaInPage: React.FC<HutaInPageProps> = ({
   const categories = ['All', 'Entertainment', 'Exhibitions', 'Food & Culture', 'Sports', 'Tech'];
   const districts = ['All', 'Colombo', 'Galle', 'Kandy', 'Jaffna', 'Negombo'];
 
-  const filteredEvents = EVENTS_DATA.filter((evt) => {
+  const filteredEvents = allEvents.filter((evt) => {
     const matchesCategory = selectedCategory === 'All' || evt.category === selectedCategory;
     const matchesDistrict = selectedDistrict === 'All' || evt.district === selectedDistrict;
     const matchesSearch =
@@ -612,12 +600,12 @@ export const HutaInPage: React.FC<HutaInPageProps> = ({
               </h2>
             </div>
             <span className="text-xs font-bold text-gray-400">
-              {EVENTS_DATA.length} Verified Events
+              {displaySpotlight.length} In Spotlight • {allEvents.length} Events
             </span>
           </div>
 
           <div className="mt-4 flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
-            {EVENTS_DATA.slice(0, 4).map((evt) => (
+            {displaySpotlight.map((evt) => (
               <div
                 key={evt.id}
                 onClick={() => setSelectedEventModal(evt)}

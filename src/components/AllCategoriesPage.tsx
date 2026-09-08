@@ -30,7 +30,7 @@ import { Listing } from '../types';
 
 interface AllCategoriesPageProps {
   onBack: () => void;
-  onSelectCategory: (category: string) => void;
+  onSelectCategory: (category: string, query?: string) => void;
   listings: Listing[];
 }
 
@@ -192,8 +192,8 @@ export const AllCategoriesPage: React.FC<AllCategoriesPageProps> = ({
     cls.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleCategoryClick = (categoryFilter: string) => {
-    onSelectCategory(categoryFilter);
+  const handleCategoryClick = (categoryFilter: string, searchKeyword?: string) => {
+    onSelectCategory(categoryFilter, searchKeyword);
   };
 
   return (
@@ -296,13 +296,22 @@ export const AllCategoriesPage: React.FC<AllCategoriesPageProps> = ({
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 gap-3 sm:gap-4">
               {filteredServices.map((service) => {
                 const Icon = service.icon;
+                const matchCount = listings.filter(
+                  (l) =>
+                    l.status === 'approved' &&
+                    (l.category.toLowerCase() === 'services' || l.serviceTrade?.toLowerCase() === service.name.toLowerCase()) &&
+                    (l.title.toLowerCase().includes(service.name.toLowerCase()) ||
+                     l.description.toLowerCase().includes(service.name.toLowerCase()) ||
+                     l.serviceTrade?.toLowerCase().includes(service.name.toLowerCase()))
+                ).length;
+
                 return (
                   <motion.div
                     key={service.id}
                     whileHover={{ y: -4, scale: 1.02 }}
                     whileTap={{ scale: 0.96 }}
-                    onClick={() => handleCategoryClick(service.categoryFilter)}
-                    className="flex flex-col items-center text-center cursor-pointer group"
+                    onClick={() => handleCategoryClick('Services', service.name)}
+                    className="flex flex-col items-center text-center cursor-pointer group relative"
                   >
                     {/* White squircle container with soft drop shadow */}
                     <div
@@ -311,11 +320,20 @@ export const AllCategoriesPage: React.FC<AllCategoriesPageProps> = ({
                       <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
                         <Icon className={`w-7 h-7 sm:w-8 sm:h-8 ${service.iconColor} stroke-[1.75]`} />
                       </div>
+
+                      {matchCount > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 bg-[#FF5A36] text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs">
+                          {matchCount}
+                        </span>
+                      )}
                     </div>
 
                     {/* Category Label underneath */}
                     <span className="text-[11px] sm:text-xs font-semibold text-gray-700 group-hover:text-[#0A2540] mt-2 max-w-[100px] sm:max-w-[110px] leading-tight line-clamp-2 transition-colors">
                       {service.name}
+                    </span>
+                    <span className="text-[10px] text-gray-400 group-hover:text-[#FF5A36] mt-0.5 transition-colors">
+                      {matchCount > 0 ? `${matchCount} Available` : 'Browse & Quote'}
                     </span>
                   </motion.div>
                 );

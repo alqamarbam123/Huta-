@@ -277,13 +277,13 @@ export const AuthModals: React.FC<AuthModalsProps> = ({
                     />
                   </div>
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-[11px] text-gray-400">Default: admin123</span>
+                    <span className="text-[11px] text-gray-400">Protected Administrator Portal</span>
                     <button
                       type="button"
                       onClick={() => setIsAdminChangingPassword(true)}
-                      className="text-[11px] font-semibold text-[#FF5A36] hover:underline"
+                      className="text-[11px] font-semibold text-gray-500 hover:text-[#FF5A36] hover:underline"
                     >
-                      Change Admin Password?
+                      Reset Password
                     </button>
                   </div>
                 </div>
@@ -314,7 +314,7 @@ export const AuthModals: React.FC<AuthModalsProps> = ({
                     required
                     value={adminOldPass}
                     onChange={(e) => setAdminOldPass(e.target.value)}
-                    placeholder="Current password (default admin123)"
+                    placeholder="Enter current master password"
                     className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none"
                   />
                 </div>

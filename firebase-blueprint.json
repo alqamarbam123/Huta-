@@ -105,9 +105,24 @@
         }
       },
       "required": ["conversationId", "senderId", "senderName", "text", "createdAt"]
+    },
+    "TestConnection": {
+      "title": "TestConnection",
+      "description": "Health check document to verify Cloud Firestore connectivity upon app boot.",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "description": "Connection status string."
+        }
+      }
     }
   },
   "firestore": {
+    "/test/{docId}": {
+      "schema": { "$ref": "#/entities/TestConnection" },
+      "description": "Health check document used by testConnection() upon initial boot."
+    },
     "/conversations/{conversationId}": {
       "schema": { "$ref": "#/entities/Conversation" },
       "description": "Collection of top-level conversation threads between buyers and sellers."

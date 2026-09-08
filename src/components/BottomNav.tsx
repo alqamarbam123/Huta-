@@ -23,7 +23,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
     <nav
       id="bottom-navigation-bar"
       aria-label="Bottom Navigation"
-      className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] safe-area-pb"
+      className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] safe-area-pb lg:hidden"
     >
       <div className="max-w-md md:max-w-lg lg:max-w-2xl mx-auto px-4 flex items-center justify-between relative h-16 sm:h-[68px]">
         {/* 1. Home */}

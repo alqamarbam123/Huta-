@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Listing, User, ViewTab } from './types';
+import { Listing, User, ViewTab, EventItem } from './types';
 import { api } from './services/api';
 
 // Components
@@ -29,6 +29,7 @@ export default function App() {
 
   // Data State
   const [listings, setListings] = useState<Listing[]>([]);
+  const [events, setEvents] = useState<EventItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [favorites, setFavorites] = useState<string[]>([]);
 
@@ -87,12 +88,22 @@ export default function App() {
       // ignore
     }
 
-    // 3. Fetch listings
+    // 3. Fetch listings & events
     fetchListings();
+    fetchEvents();
 
     // 4. Test Firebase Firestore connection
     testConnection();
   }, []);
+
+  const fetchEvents = async () => {
+    try {
+      const data = await api.getEvents();
+      setEvents(data);
+    } catch (err) {
+      console.error('Could not fetch events', err);
+    }
+  };
 
   const fetchListings = async () => {
     setIsLoading(true);
@@ -333,6 +344,22 @@ export default function App() {
     }
   };
 
+  const handleToggleVerifyPro = async (id: string) => {
+    try {
+      const updated = await api.toggleVerifyPro(id);
+      setListings((prev) => prev.map((l) => (l.id === id ? updated : l)));
+      showToast(
+        updated.isVerifiedPro
+          ? 'Service verified as HUTA Verified Pro! 🛡️'
+          : 'Service Verified Pro status removed',
+        'success'
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to toggle Verified Pro status';
+      showToast(msg, 'error');
+    }
+  };
+
   // Auth Handlers
   const handleUserAuthSuccess = (user: User) => {
     setCurrentUser(user);
@@ -426,6 +453,7 @@ export default function App() {
 
         {currentTab === 'huta_in' && (
           <HutaInPage
+            events={events}
             onBackToHome={() => setCurrentTab('marketplace')}
             onOpenPostAd={handleOpenPostAd}
             onSelectCategory={(cat) => {
@@ -439,8 +467,13 @@ export default function App() {
         {currentTab === 'categories' && (
           <AllCategoriesPage
             onBack={() => setCurrentTab('marketplace')}
-            onSelectCategory={(cat) => {
+            onSelectCategory={(cat, query) => {
               setSelectedCategory(cat);
+              if (query) {
+                setSearchTerm(query);
+              } else {
+                setSearchTerm('');
+              }
               setCurrentTab('marketplace');
             }}
             listings={listings}
@@ -464,6 +497,7 @@ export default function App() {
             onLogoutUser={handleLogoutUser}
             onLogoutAdmin={handleLogoutAdmin}
             onBackToHome={() => setCurrentTab('marketplace')}
+            onToast={showToast}
           />
         )}
 
@@ -486,14 +520,41 @@ export default function App() {
         {currentTab === 'admin_dashboard' && (
           <AdminDashboard
             listings={listings}
+            events={events}
             onApprove={handleApproveListing}
             onReject={handleRejectListing}
             onToggleFeature={handleToggleFeatureListing}
+            onToggleVerifyPro={handleToggleVerifyPro}
             onDelete={handleDeleteListing}
             onBackToMarketplace={() => setCurrentTab('marketplace')}
             onLogoutAdmin={handleLogoutAdmin}
             onSelectListing={handleSelectListing}
+            onEditListing={handleEditListing}
             onToast={showToast}
+            onUpdateEvent={(updated) => {
+              setEvents((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+            }}
+            onCreateEvent={(created) => {
+              setEvents((prev) => [created, ...prev]);
+            }}
+            onDeleteEvent={(id) => {
+              setEvents((prev) => prev.filter((e) => e.id !== id));
+            }}
+            onToggleSpotlightEvent={async (id) => {
+              try {
+                const updated = await api.toggleSpotlightEvent(id);
+                setEvents((prev) => prev.map((e) => (e.id === id ? updated : e)));
+                showToast(
+                  updated.isSpotlight
+                    ? `"${updated.title}" added to Upcoming Spotlight banner!`
+                    : `"${updated.title}" removed from Upcoming Spotlight`,
+                  'success'
+                );
+              } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : 'Failed to toggle spotlight';
+                showToast(msg, 'error');
+              }
+            }}
           />
         )}
       </main>
@@ -542,6 +603,7 @@ export default function App() {
         onSubmitAd={handleSubmitAd}
         editingListing={editingListing}
         currentUser={currentUser}
+        isAdminLoggedIn={isAdminLoggedIn}
         onToast={showToast}
       />
 

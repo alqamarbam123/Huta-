@@ -19,8 +19,10 @@ import {
   UserCheck,
   Lock,
   Compass,
-  ArrowLeft
+  ArrowLeft,
+  Sliders
 } from 'lucide-react';
+import { DeviceSettingsPanel } from './DeviceSettingsPanel';
 
 interface MorePageProps {
   currentUser: User | null;
@@ -35,6 +37,7 @@ interface MorePageProps {
   onLogoutUser: () => void;
   onLogoutAdmin: () => void;
   onBackToHome: () => void;
+  onToast?: (msg: string, type?: 'success' | 'info' | 'error') => void;
 }
 
 export const MorePage: React.FC<MorePageProps> = ({
@@ -50,6 +53,7 @@ export const MorePage: React.FC<MorePageProps> = ({
   onLogoutUser,
   onLogoutAdmin,
   onBackToHome,
+  onToast,
 }) => {
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-32 animate-in fade-in duration-200">
@@ -121,29 +125,19 @@ export const MorePage: React.FC<MorePageProps> = ({
                 <MessageSquare className="w-4 h-4 text-[#FF5A36] group-hover:scale-110 transition-transform" />
               </button>
 
-              {/* 3. Administrator Portal Button */}
-              <button
-                type="button"
-                id="more-panel-admin-btn"
-                onClick={isAdminLoggedIn ? () => onSelectTab('admin_dashboard') : onOpenAdminLogin}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm border transition-all shadow-sm cursor-pointer group ${
-                  isAdminLoggedIn
-                    ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-400 hover:bg-emerald-900/40'
-                    : 'bg-[#22242E] hover:bg-[#2A2D3A] active:scale-95 text-gray-200 border-[#333644]'
-                }`}
-              >
-                <Shield
-                  className={`w-4 h-4 transition-transform group-hover:scale-110 ${
-                    isAdminLoggedIn ? 'text-emerald-400' : 'text-gray-300'
-                  }`}
-                />
-                <span className="font-semibold">
-                  {isAdminLoggedIn ? 'Admin Panel' : 'Admin'}
-                </span>
-                {isAdminLoggedIn && (
+              {/* 3. Administrator Portal Button (Only visible if Admin is already logged in) */}
+              {isAdminLoggedIn && (
+                <button
+                  type="button"
+                  id="more-panel-admin-btn"
+                  onClick={() => onSelectTab('admin_dashboard')}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm border bg-emerald-950/40 border-emerald-500/40 text-emerald-400 hover:bg-emerald-900/40 transition-all shadow-sm cursor-pointer group"
+                >
+                  <Shield className="w-4 h-4 text-emerald-400 transition-transform group-hover:scale-110" />
+                  <span className="font-semibold">Admin Panel</span>
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                )}
-              </button>
+                </button>
+              )}
             </div>
 
             {/* Bottom row: [⊕ Post Ad] */}
@@ -252,61 +246,58 @@ export const MorePage: React.FC<MorePageProps> = ({
               <ChevronRight className="w-4 h-4 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
             </button>
 
-            {/* Administrator Login Item */}
-            <button
-              type="button"
-              id="more-menu-admin-login"
-              onClick={onOpenAdminLogin}
-              className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50/80 transition-colors group cursor-pointer"
-            >
-              <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center group-hover:scale-105 transition-transform">
-                  <Shield className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-bold text-gray-900 group-hover:text-[#FF5A36] transition-colors">
-                      Administrator Login
-                    </p>
-                    {isAdminLoggedIn && (
-                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                        Admin Active
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-400">
-                    {isAdminLoggedIn
-                      ? 'Open Control Dashboard or update admin password'
-                      : 'Master administration control & ad moderation portal'}
-                  </p>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-gray-400 group-hover:translate-x-0.5 transition-transform" />
-            </button>
-
-            {/* Admin Dashboard Quick Access (if admin logged in) */}
+            {/* Admin Controls - ONLY visible when Admin is logged in with password */}
             {isAdminLoggedIn && (
-              <button
-                type="button"
-                id="more-menu-admin-dashboard"
-                onClick={() => onSelectTab('admin_dashboard')}
-                className="w-full px-5 py-4 flex items-center justify-between text-left bg-emerald-50/50 hover:bg-emerald-50 transition-colors group cursor-pointer"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                    <LayoutGrid className="w-5 h-5" />
+              <>
+                <button
+                  type="button"
+                  id="more-menu-admin-dashboard"
+                  onClick={() => onSelectTab('admin_dashboard')}
+                  className="w-full px-5 py-4 flex items-center justify-between text-left bg-emerald-50/50 hover:bg-emerald-50 transition-colors group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                      <LayoutGrid className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold text-emerald-900">
+                          Open Admin Control Dashboard
+                        </p>
+                        <span className="text-[10px] font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full">
+                          Active
+                        </span>
+                      </div>
+                      <p className="text-xs text-emerald-700">
+                        Edit all ad details, approve pending ads, feature listings, or delete items
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-emerald-900">
-                      Open Admin Control Dashboard
-                    </p>
-                    <p className="text-xs text-emerald-700">
-                      Approve pending ads, feature listings, or delete items
-                    </p>
+                  <ChevronRight className="w-4 h-4 text-emerald-600" />
+                </button>
+
+                <button
+                  type="button"
+                  id="more-menu-change-admin-pass"
+                  onClick={() => onSelectTab('admin_dashboard')}
+                  className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50/80 transition-colors group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+                      <Lock className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-900 group-hover:text-[#FF5A36] transition-colors">
+                        Change Admin Master Password
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        Update administrator credentials inside dashboard
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-emerald-600" />
-              </button>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+              </>
             )}
 
             {/* Member Password Change */}
@@ -333,29 +324,6 @@ export const MorePage: React.FC<MorePageProps> = ({
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </button>
             )}
-
-            {/* Admin Password Change Trigger */}
-            <button
-              type="button"
-              id="more-menu-change-admin-pass"
-              onClick={onOpenAdminLogin}
-              className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-gray-50/80 transition-colors group cursor-pointer"
-            >
-              <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-                  <Lock className="w-5 h-5" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-gray-900 group-hover:text-[#FF5A36] transition-colors">
-                    Change Admin Master Password
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    Update master administrator credentials
-                  </p>
-                </div>
-              </div>
-              <ChevronRight className="w-4 h-4 text-gray-400" />
-            </button>
           </div>
         </section>
 
@@ -515,7 +483,12 @@ export const MorePage: React.FC<MorePageProps> = ({
           </div>
         </section>
 
-        {/* 4. Help & Support */}
+        {/* 4. Mobile, Tab & Web Page Settings */}
+        <section className="space-y-3">
+          <DeviceSettingsPanel onToast={onToast} />
+        </section>
+
+        {/* 5. Help & Support */}
         <section className="space-y-3">
           <div className="flex items-center gap-2">
             <HelpCircle className="w-4 h-4 text-gray-400" />

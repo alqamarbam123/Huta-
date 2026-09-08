@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, MapPin, PhoneCall, HelpCircle, Heart } from 'lucide-react';
+import { ShieldCheck, MapPin, PhoneCall, HelpCircle, Heart, Lock } from 'lucide-react';
 
 interface FooterProps {
   onSelectCategory: (cat: string) => void;
@@ -123,15 +123,6 @@ export const Footer: React.FC<FooterProps> = ({
                   Always inspect goods in person in a safe, public place before transferring funds.
                 </span>
               </li>
-              <li className="pt-2">
-                <button
-                  type="button"
-                  onClick={onOpenAdminLogin}
-                  className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                >
-                  Admin Management
-                </button>
-              </li>
             </ul>
           </div>
         </div>
@@ -143,6 +134,17 @@ export const Footer: React.FC<FooterProps> = ({
             <span>Fast & Secure Trading</span>
             <span>•</span>
             <span>Gemini AI Listing Assistant</span>
+            <span>•</span>
+            <button
+              type="button"
+              id="footer-staff-portal"
+              onClick={onOpenAdminLogin}
+              className="text-gray-600 hover:text-gray-400 transition-opacity opacity-30 hover:opacity-90 p-0.5 cursor-pointer"
+              title="Staff Portal"
+              aria-label="Staff Portal"
+            >
+              <Lock className="w-3 h-3" />
+            </button>
           </div>
         </div>
       </div>

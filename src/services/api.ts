@@ -1,4 +1,4 @@
-import { Listing, User } from '../types';
+import { Listing, User, EventItem } from '../types';
 
 const API_BASE = '/api';
 
@@ -90,6 +90,14 @@ export const api = {
       method: 'PUT',
     });
     if (!res.ok) throw new Error('Failed to toggle feature');
+    return res.json();
+  },
+
+  async toggleVerifyPro(id: string): Promise<Listing> {
+    const res = await fetch(`${API_BASE}/listings/${id}/verify-pro`, {
+      method: 'PUT',
+    });
+    if (!res.ok) throw new Error('Failed to toggle verified pro status');
     return res.json();
   },
 
@@ -276,6 +284,68 @@ export const api = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Failed to generate description');
+    }
+    return res.json();
+  },
+
+  // Events & Upcoming Spotlight
+  async getEvents(params?: { category?: string; district?: string; spotlight?: boolean }): Promise<EventItem[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.category) searchParams.set('category', params.category);
+    if (params?.district) searchParams.set('district', params.district);
+    if (params?.spotlight !== undefined) searchParams.set('spotlight', String(params.spotlight));
+
+    const res = await fetch(`${API_BASE}/events?${searchParams.toString()}`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch events: ${res.statusText}`);
+    }
+    return res.json();
+  },
+
+  async createEvent(data: Partial<EventItem>): Promise<EventItem> {
+    const res = await fetch(`${API_BASE}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to create event');
+    }
+    return res.json();
+  },
+
+  async updateEvent(id: string, data: Partial<EventItem>): Promise<EventItem> {
+    const res = await fetch(`${API_BASE}/events/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to update event');
+    }
+    return res.json();
+  },
+
+  async toggleSpotlightEvent(id: string): Promise<EventItem> {
+    const res = await fetch(`${API_BASE}/events/${id}/spotlight`, {
+      method: 'PUT',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to toggle spotlight');
+    }
+    return res.json();
+  },
+
+  async deleteEvent(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/events/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to delete event');
     }
     return res.json();
   }

@@ -49,8 +49,8 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </motion.div>
 
-        {/* Center/Right Desktop Navigation Tabs */}
-        <div className="hidden lg:flex items-center gap-1.5 bg-[#181920] border border-[#2D2F39] rounded-2xl p-1.5 shadow-inner">
+        {/* Center/Right Desktop and Tablet Navigation Tabs */}
+        <div className="hidden md:flex items-center gap-1 sm:gap-1.5 bg-[#181920] border border-[#2D2F39] rounded-2xl p-1 sm:p-1.5 shadow-inner">
           <button
             type="button"
             onClick={() => onSelectTab('marketplace')}

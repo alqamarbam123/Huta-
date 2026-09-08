@@ -12,7 +12,10 @@ import {
   Heart,
   Edit,
   Trash2,
-  Share2
+  Share2,
+  ShieldCheck,
+  Wrench,
+  Sparkles
 } from 'lucide-react';
 import { formatLKR } from './ListingsSection';
 
@@ -55,10 +58,15 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
     ? '94' + cleanPhone.substring(1)
     : '94' + cleanPhone;
 
-  const waMessage = encodeURIComponent(
+  const isService = listing.category === 'Services' || Boolean(listing.serviceTrade);
+
+  const waServiceMessage = encodeURIComponent(
+    `Hello! I saw your service listing on HUTA.lk: "${listing.title}" (${listing.serviceTrade || 'Professional Service'}). I would like to request an inspection / free quote for my location in ${listing.location}. Are you available?`
+  );
+  const waProductMessage = encodeURIComponent(
     `Hi! I saw your advertisement on HUTA.lk: "${listing.title}" (${formatLKR(listing.price)}). Is this still available?`
   );
-  const whatsappUrl = `https://wa.me/${waPhone}?text=${waMessage}`;
+  const whatsappUrl = `https://wa.me/${waPhone}?text=${isService ? waServiceMessage : waProductMessage}`;
 
   return (
     <motion.div
@@ -109,10 +117,23 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
               {/* Header with Title & Favorite */}
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <span className="text-xs font-bold text-[#FF5A36] uppercase tracking-wider">
-                    {listing.category}
-                  </span>
-                  <h2 className="text-xl font-extrabold text-[#181920] mt-1 leading-tight">
+                  <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                    <span className="text-xs font-bold text-[#FF5A36] uppercase tracking-wider">
+                      {listing.serviceTrade || listing.category}
+                    </span>
+                    {listing.isVerifiedPro && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">
+                        <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                        Verified Pro
+                      </span>
+                    )}
+                    {listing.isEmergency247 && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-extrabold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full border border-amber-300">
+                        ⚡ 24/7 Emergency
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="text-xl font-extrabold text-[#181920] leading-tight">
                     {listing.title}
                   </h2>
                 </div>
@@ -141,9 +162,31 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
                 </div>
               </div>
 
-              {/* Price */}
-              <div className="text-2xl font-black text-[#FF5A36] mt-2 mb-3">
-                {formatLKR(listing.price)}
+              {/* Price / Service Rate Display */}
+              <div className="mt-2 mb-3">
+                {isService ? (
+                  <div>
+                    <div className="text-2xl font-black text-[#FF5A36]">
+                      {listing.pricingType === 'quote'
+                        ? 'Free Estimate / Price on Request'
+                        : listing.pricingType === 'hourly'
+                        ? `${formatLKR(listing.price)} / hr`
+                        : listing.pricingType === 'starting_at'
+                        ? `Starting from ${formatLKR(listing.price)}`
+                        : formatLKR(listing.price)}
+                    </div>
+                    {listing.serviceArea && (
+                      <p className="text-xs text-gray-600 mt-1 flex items-center gap-1 font-medium">
+                        <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span>Coverage Area: <strong className="text-gray-900">{listing.serviceArea}</strong></span>
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-2xl font-black text-[#FF5A36]">
+                    {formatLKR(listing.price)}
+                  </div>
+                )}
               </div>
 
               {/* Meta pills */}
@@ -152,6 +195,12 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
                   <MapPin className="w-3.5 h-3.5 text-[#FF5A36]" />
                   {listing.location}, Sri Lanka
                 </span>
+                {listing.serviceTrade && (
+                  <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-800 border border-blue-100 px-2.5 py-1 rounded-md font-medium">
+                    <Wrench className="w-3.5 h-3.5 text-blue-600" />
+                    {listing.serviceTrade}
+                  </span>
+                )}
                 <span className="inline-flex items-center gap-1 bg-gray-100 px-2.5 py-1 rounded-md font-medium">
                   <Tag className="w-3.5 h-3.5 text-gray-500" />
                   {listing.category}
@@ -180,7 +229,9 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
             {/* Seller Contact & Actions */}
             <div className="mt-4 pt-2 space-y-2.5">
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-3.5 text-center">
-                <p className="text-xs text-gray-500 font-medium">Verified Seller Contact</p>
+                <p className="text-xs text-gray-500 font-medium">
+                  {isService ? 'Service Provider Contact' : 'Verified Seller Contact'}
+                </p>
                 <div className="text-lg font-bold text-gray-900 mt-0.5 tracking-wide flex items-center justify-center gap-2">
                   <Phone className="w-4 h-4 text-[#FF5A36]" />
                   <a href={`tel:${listing.phone}`} className="hover:underline text-gray-900">
@@ -194,7 +245,7 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
                     className="flex items-center justify-center gap-1.5 bg-[#181920] hover:bg-black text-white text-xs font-bold py-2.5 px-3 rounded-lg shadow-sm transition-all"
                   >
                     <Phone className="w-3.5 h-3.5" />
-                    <span>Call Seller</span>
+                    <span>{isService ? 'Call Provider' : 'Call Seller'}</span>
                   </a>
                   <a
                     href={whatsappUrl}
@@ -203,7 +254,7 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
                     className="flex items-center justify-center gap-1.5 bg-[#25D366] hover:bg-[#1DA851] text-white text-xs font-bold py-2.5 px-3 rounded-lg shadow-sm transition-all"
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
-                    <span>WhatsApp</span>
+                    <span>{isService ? 'Request Quote' : 'WhatsApp'}</span>
                   </a>
                 </div>
 
@@ -225,23 +276,36 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
 
               {/* Author / Admin Controls */}
               {canManage && (
-                <div className="flex items-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => onEditListing(listing)}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-semibold py-2 rounded-lg transition-colors"
-                  >
-                    <Edit className="w-3.5 h-3.5" />
-                    <span>Edit Ad</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDeleteListing(listing.id)}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold py-2 rounded-lg transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete Ad</span>
-                  </button>
+                <div className="pt-2 space-y-1.5">
+                  {isAdminLoggedIn && (
+                    <div className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                        Admin Controls Active
+                      </span>
+                      <span className="font-mono text-[10px] text-gray-500">
+                        Status: {listing.status}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onEditListing(listing)}
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-semibold py-2 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                      <span>{isAdminLoggedIn ? 'Edit Listing (Admin)' : 'Edit Ad'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDeleteListing(listing.id)}
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold py-2 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete Ad</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

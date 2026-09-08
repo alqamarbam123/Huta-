@@ -9,7 +9,9 @@ import {
   Clock,
   Eye,
   Inbox,
-  ArrowUpDown
+  ArrowUpDown,
+  ShieldCheck,
+  Wrench
 } from 'lucide-react';
 
 interface ListingsSectionProps {
@@ -156,15 +158,26 @@ export const ListingsSection: React.FC<ListingsSectionProps> = ({
                 className="group bg-white rounded-2xl border border-gray-200 hover:border-[#FF5A36] overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col relative"
               >
                 {/* Badges */}
-                <div className="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1">
+                <div className="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1 items-start">
                   {item.isFeatured && (
                     <span className="inline-flex items-center gap-1 bg-[#FF5A36] text-white text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full shadow-md animate-pulse">
                       <Star className="w-3 h-3 fill-current" />
                       Featured
                     </span>
                   )}
-                  {isNew && (
-                    <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full shadow-sm">
+                  {item.isVerifiedPro && (
+                    <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-sm">
+                      <ShieldCheck className="w-3 h-3" />
+                      Verified Pro
+                    </span>
+                  )}
+                  {item.isEmergency247 && (
+                    <span className="inline-flex items-center gap-0.5 bg-amber-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-sm">
+                      ⚡ 24/7
+                    </span>
+                  )}
+                  {isNew && !item.isVerifiedPro && !item.isEmergency247 && (
+                    <span className="inline-flex items-center gap-1 bg-blue-600 text-white text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full shadow-sm">
                       <Zap className="w-3 h-3 fill-current" />
                       New
                     </span>
@@ -207,14 +220,20 @@ export const ListingsSection: React.FC<ListingsSectionProps> = ({
                 {/* Card Body */}
                 <div className="p-4 flex-1 flex flex-col justify-between">
                   <div>
-                    <span className="text-[11px] font-bold text-[#FF5A36] uppercase tracking-wider">
-                      {item.category}
+                    <span className="text-[11px] font-bold text-[#FF5A36] uppercase tracking-wider line-clamp-1">
+                      {item.serviceTrade || item.category}
                     </span>
                     <h3 className="font-bold text-gray-900 text-sm sm:text-base mt-1 line-clamp-2 leading-snug group-hover:text-[#FF5A36] transition-colors">
                       {item.title}
                     </h3>
                     <div className="text-base sm:text-lg font-extrabold text-[#111217] mt-1.5">
-                      {formatLKR(item.price)}
+                      {item.category === 'Services' && item.pricingType === 'quote'
+                        ? 'Quote on Request'
+                        : item.category === 'Services' && item.pricingType === 'hourly'
+                        ? `${formatLKR(item.price)}/hr`
+                        : item.category === 'Services' && item.pricingType === 'starting_at'
+                        ? `From ${formatLKR(item.price)}`
+                        : formatLKR(item.price)}
                     </div>
                   </div>
 

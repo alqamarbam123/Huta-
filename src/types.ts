@@ -12,6 +12,11 @@ export interface Listing {
   date: string;
   userId: string;
   views: number;
+  serviceTrade?: string;
+  pricingType?: 'fixed' | 'starting_at' | 'hourly' | 'quote';
+  serviceArea?: string;
+  isVerifiedPro?: boolean;
+  isEmergency247?: boolean;
 }
 
 export interface User {
@@ -64,3 +69,39 @@ export interface ChatMessage {
   text: string;
   createdAt: string;
 }
+
+export interface AppSettings {
+  deviceLayout: 'auto' | 'mobile' | 'tablet' | 'desktop';
+  density: 'comfortable' | 'compact';
+  theme: 'light' | 'dark' | 'system';
+  language: 'en' | 'si' | 'ta';
+  currency: 'LKR' | 'USD' | 'EUR';
+  dataSaver: boolean;
+  hapticFeedback: boolean;
+  browserTabBadges: boolean;
+  pushNotifications: boolean;
+  soundEffects: boolean;
+}
+
+export interface EventItem {
+  id: string;
+  title: string;
+  category: string;
+  district: string;
+  date: string;
+  month: string;
+  day: string;
+  time: string;
+  location: string;
+  venue: string;
+  image: string;
+  badge?: string;
+  price: string;
+  isFree: boolean;
+  attendees: number;
+  description: string;
+  organizer: string;
+  isSpotlight?: boolean;
+}
+
+

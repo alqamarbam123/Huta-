@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Listing } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Listing, EventItem } from '../types';
 import {
   ShieldCheck,
   Clock,
@@ -14,35 +14,66 @@ import {
   KeyRound,
   Lock,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  Wrench,
+  DollarSign,
+  TrendingUp,
+  Briefcase,
+  Pencil,
+  Search,
+  Calendar,
+  Plus,
+  MapPin,
+  Ticket,
+  Eye,
+  Tag,
+  Users,
+  AlertCircle
 } from 'lucide-react';
 import { formatLKR } from './ListingsSection';
 import { api } from '../services/api';
 
 interface AdminDashboardProps {
   listings: Listing[];
+  events?: EventItem[];
   onApprove: (id: string) => Promise<void>;
   onReject: (id: string) => Promise<void>;
   onToggleFeature: (id: string) => Promise<void>;
+  onToggleVerifyPro?: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onBackToMarketplace: () => void;
   onLogoutAdmin: () => void;
   onSelectListing: (listing: Listing) => void;
+  onEditListing?: (listing: Listing) => void;
   onToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
+  onUpdateEvent?: (updated: EventItem) => void;
+  onCreateEvent?: (created: EventItem) => void;
+  onDeleteEvent?: (id: string) => void;
+  onToggleSpotlightEvent?: (id: string) => Promise<void>;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   listings,
+  events,
   onApprove,
   onReject,
   onToggleFeature,
+  onToggleVerifyPro,
   onDelete,
   onBackToMarketplace,
   onLogoutAdmin,
   onSelectListing,
+  onEditListing,
   onToast,
+  onUpdateEvent,
+  onCreateEvent,
+  onDeleteEvent,
+  onToggleSpotlightEvent,
 }) => {
-  const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'featured'>('all');
+  const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'featured' | 'services' | 'spotlight'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('all');
+  const [showMonetizationGuide, setShowMonetizationGuide] = useState(true);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
@@ -50,6 +81,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [changeError, setChangeError] = useState('');
   const [changeSuccess, setChangeSuccess] = useState('');
+
+  // Events & Spotlight state
+  const [localEvents, setLocalEvents] = useState<EventItem[]>(events || []);
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
+  const [isSubmittingEvent, setIsSubmittingEvent] = useState(false);
+  const [eventFormError, setEventFormError] = useState('');
+
+  // Event search & filters
+  const [eventSearchTerm, setEventSearchTerm] = useState('');
+  const [eventCategoryFilter, setEventCategoryFilter] = useState('All');
+  const [eventSpotlightFilter, setEventSpotlightFilter] = useState<'all' | 'spotlight' | 'standard'>('all');
+
+  // Event form fields
+  const [evtTitle, setEvtTitle] = useState('');
+  const [evtCategory, setEvtCategory] = useState<'Entertainment' | 'Exhibitions' | 'Food & Culture' | 'Sports' | 'Tech'>('Entertainment');
+  const [evtDistrict, setEvtDistrict] = useState<'Colombo' | 'Galle' | 'Kandy' | 'Jaffna' | 'Negombo' | 'Other'>('Colombo');
+  const [evtDate, setEvtDate] = useState('');
+  const [evtMonth, setEvtMonth] = useState('OCT');
+  const [evtDay, setEvtDay] = useState('18');
+  const [evtTime, setEvtTime] = useState('10:00 AM - 08:00 PM');
+  const [evtLocation, setEvtLocation] = useState('Colombo 07');
+  const [evtVenue, setEvtVenue] = useState('');
+  const [evtImage, setEvtImage] = useState('');
+  const [evtBadge, setEvtBadge] = useState('Featured');
+  const [evtPrice, setEvtPrice] = useState('Free Entry');
+  const [evtIsFree, setEvtIsFree] = useState(true);
+  const [evtAttendees, setEvtAttendees] = useState(1500);
+  const [evtDescription, setEvtDescription] = useState('');
+  const [evtOrganizer, setEvtOrganizer] = useState('');
+  const [evtIsSpotlight, setEvtIsSpotlight] = useState(true);
+
+  // Sync events from prop or fetch if empty
+  useEffect(() => {
+    if (events && events.length > 0) {
+      setLocalEvents(events);
+    } else {
+      api.getEvents().then((data) => setLocalEvents(data)).catch(console.error);
+    }
+  }, [events]);
+
+  const spotlightEventsCount = localEvents.filter((e) => e.isSpotlight).length;
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,12 +162,190 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const total = listings.length;
   const pending = listings.filter((l) => l.status === 'pending').length;
   const featured = listings.filter((l) => l.isFeatured).length;
+  const servicesCount = listings.filter((l) => l.category === 'Services').length;
+  const verifiedProsCount = listings.filter((l) => l.category === 'Services' && l.isVerifiedPro).length;
 
   const filteredListings = listings.filter((item) => {
-    if (filterTab === 'pending') return item.status === 'pending';
-    if (filterTab === 'featured') return item.isFeatured;
+    if (filterTab === 'pending' && item.status !== 'pending') return false;
+    if (filterTab === 'featured' && !item.isFeatured) return false;
+    if (filterTab === 'services' && item.category !== 'Services') return false;
+    if (selectedDistrict !== 'all' && item.location !== selectedDistrict) return false;
+
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase();
+      const matchTitle = item.title.toLowerCase().includes(q);
+      const matchPhone = item.phone.toLowerCase().includes(q);
+      const matchLoc = item.location.toLowerCase().includes(q);
+      const matchTrade = (item.serviceTrade || '').toLowerCase().includes(q);
+      const matchUserId = (item.userId || '').toLowerCase().includes(q);
+      const matchId = (item.id || '').toLowerCase().includes(q);
+      if (!matchTitle && !matchPhone && !matchLoc && !matchTrade && !matchUserId && !matchId) {
+        return false;
+      }
+    }
     return true;
   });
+
+  // Event handlers
+  const openAddEvent = () => {
+    setEditingEvent(null);
+    setEvtTitle('');
+    setEvtCategory('Entertainment');
+    setEvtDistrict('Colombo');
+    setEvtDate('NOV 15 - 18, 2026');
+    setEvtMonth('NOV');
+    setEvtDay('15');
+    setEvtTime('10:00 AM - 08:00 PM');
+    setEvtLocation('Colombo 07');
+    setEvtVenue('');
+    setEvtImage('https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=80');
+    setEvtBadge('Featured');
+    setEvtPrice('Free Entry');
+    setEvtIsFree(true);
+    setEvtAttendees(2500);
+    setEvtDescription('');
+    setEvtOrganizer('HUTA Community');
+    setEvtIsSpotlight(true);
+    setEventFormError('');
+    setIsEventModalOpen(true);
+  };
+
+  const openEditEvent = (evt: EventItem) => {
+    setEditingEvent(evt);
+    setEvtTitle(evt.title);
+    setEvtCategory(evt.category);
+    setEvtDistrict(evt.district);
+    setEvtDate(evt.date);
+    setEvtMonth(evt.month);
+    setEvtDay(evt.day);
+    setEvtTime(evt.time);
+    setEvtLocation(evt.location);
+    setEvtVenue(evt.venue);
+    setEvtImage(evt.image);
+    setEvtBadge(evt.badge || 'Featured');
+    setEvtPrice(evt.price);
+    setEvtIsFree(evt.isFree);
+    setEvtAttendees(evt.attendees);
+    setEvtDescription(evt.description);
+    setEvtOrganizer(evt.organizer);
+    setEvtIsSpotlight(Boolean(evt.isSpotlight));
+    setEventFormError('');
+    setIsEventModalOpen(true);
+  };
+
+  const handleSaveEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!evtTitle.trim()) {
+      setEventFormError('Event title is required.');
+      return;
+    }
+    if (!evtVenue.trim()) {
+      setEventFormError('Event venue is required.');
+      return;
+    }
+
+    setIsSubmittingEvent(true);
+    setEventFormError('');
+
+    const eventPayload = {
+      title: evtTitle.trim(),
+      category: evtCategory,
+      district: evtDistrict,
+      date: evtDate.trim() || `${evtMonth} ${evtDay}, 2026`,
+      month: evtMonth.trim().toUpperCase(),
+      day: evtDay.trim(),
+      time: evtTime.trim(),
+      location: evtLocation.trim(),
+      venue: evtVenue.trim(),
+      image: evtImage.trim() || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=80',
+      badge: evtBadge.trim(),
+      price: evtIsFree ? 'Free Entry' : evtPrice.trim(),
+      isFree: evtIsFree,
+      attendees: Number(evtAttendees) || 1000,
+      description: evtDescription.trim(),
+      organizer: evtOrganizer.trim() || 'HUTA Community',
+      isSpotlight: evtIsSpotlight,
+    };
+
+    try {
+      if (editingEvent) {
+        const updated = await api.updateEvent(editingEvent.id, eventPayload);
+        setLocalEvents((prev) => prev.map((ev) => (ev.id === editingEvent.id ? updated : ev)));
+        if (onUpdateEvent) onUpdateEvent(updated);
+        if (onToast) onToast(`"${updated.title}" updated successfully!`, 'success');
+      } else {
+        const created = await api.createEvent(eventPayload);
+        setLocalEvents((prev) => [created, ...prev]);
+        if (onCreateEvent) onCreateEvent(created);
+        if (onToast) onToast(`"${created.title}" added to events!`, 'success');
+      }
+      setIsEventModalOpen(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save event';
+      setEventFormError(msg);
+      if (onToast) onToast(msg, 'error');
+    } finally {
+      setIsSubmittingEvent(false);
+    }
+  };
+
+  const handleToggleSpotlightAction = async (evt: EventItem) => {
+    if (onToggleSpotlightEvent) {
+      await onToggleSpotlightEvent(evt.id);
+      setLocalEvents((prev) =>
+        prev.map((e) => (e.id === evt.id ? { ...e, isSpotlight: !e.isSpotlight } : e))
+      );
+    } else {
+      try {
+        const updated = await api.toggleSpotlightEvent(evt.id);
+        setLocalEvents((prev) => prev.map((e) => (e.id === evt.id ? updated : e)));
+        if (onToast) {
+          onToast(
+            updated.isSpotlight
+              ? `"${updated.title}" added to Upcoming Spotlight!`
+              : `"${updated.title}" removed from Upcoming Spotlight`,
+            'success'
+          );
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to toggle spotlight';
+        if (onToast) onToast(msg, 'error');
+      }
+    }
+  };
+
+  const handleDeleteEventAction = async (id: string, title: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${title}"? This cannot be undone.`)) {
+      return;
+    }
+    try {
+      await api.deleteEvent(id);
+      setLocalEvents((prev) => prev.filter((e) => e.id !== id));
+      if (onDeleteEvent) onDeleteEvent(id);
+      if (onToast) onToast(`"${title}" deleted successfully`, 'info');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete event';
+      if (onToast) onToast(msg, 'error');
+    }
+  };
+
+  const filteredEventsList = localEvents.filter((item) => {
+    if (eventSpotlightFilter === 'spotlight' && !item.isSpotlight) return false;
+    if (eventSpotlightFilter === 'standard' && item.isSpotlight) return false;
+    if (eventCategoryFilter !== 'All' && item.category !== eventCategoryFilter) return false;
+
+    if (eventSearchTerm.trim()) {
+      const q = eventSearchTerm.toLowerCase();
+      const matchTitle = item.title.toLowerCase().includes(q);
+      const matchVenue = item.venue.toLowerCase().includes(q);
+      const matchDist = item.district.toLowerCase().includes(q);
+      const matchOrg = item.organizer.toLowerCase().includes(q);
+      if (!matchTitle && !matchVenue && !matchDist && !matchOrg) return false;
+    }
+    return true;
+  });
+
+  const spotlightEventsList = localEvents.filter((e) => e.isSpotlight);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-300">
@@ -104,7 +355,367 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="flex items-center gap-2 text-[#FF5A36] font-bold text-sm">
             <ShieldCheck className="w-5 h-5" />
             <span>Administrator Portal</span>
+            {/* Edit / Add Spotlight Event Modal */}
+      {isEventModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in overflow-y-auto"
+          onClick={() => setIsEventModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative border border-gray-100 animate-in zoom-in-95 my-8 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-orange-50 text-[#FF5A36] flex items-center justify-center font-bold">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-lg text-gray-900 leading-none">
+                    {editingEvent ? 'Edit Spotlight Event' : 'Create Spotlight Event'}
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {editingEvent
+                      ? 'Update event details and upcoming spotlight banner settings'
+                      : 'Add a new community gathering or expo to the spotlight directory'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEventModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {eventFormError && (
+              <div className="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-semibold text-rose-700 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{eventFormError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEvent} className="mt-5 space-y-4">
+              {/* Event Title */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Event Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={evtTitle}
+                  onChange={(e) => setEvtTitle(e.target.value)}
+                  placeholder="e.g. CARDCON & Collectibles Expo 2026"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none font-medium"
+                />
+              </div>
+
+              {/* Category & District */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={evtCategory}
+                    onChange={(e) => setEvtCategory(e.target.value as any)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none bg-white font-medium"
+                  >
+                    <option value="Entertainment">Entertainment</option>
+                    <option value="Exhibitions">Exhibitions</option>
+                    <option value="Food & Culture">Food & Culture</option>
+                    <option value="Sports">Sports</option>
+                    <option value="Tech">Tech</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    District
+                  </label>
+                  <select
+                    value={evtDistrict}
+                    onChange={(e) => setEvtDistrict(e.target.value as any)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none bg-white font-medium"
+                  >
+                    <option value="Colombo">Colombo</option>
+                    <option value="Galle">Galle</option>
+                    <option value="Kandy">Kandy</option>
+                    <option value="Jaffna">Jaffna</option>
+                    <option value="Negombo">Negombo</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Venue & Location */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Venue Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={evtVenue}
+                    onChange={(e) => setEvtVenue(e.target.value)}
+                    placeholder="e.g. BMICH Exhibition Centre, Hall A"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    City / Suburb
+                  </label>
+                  <input
+                    type="text"
+                    value={evtLocation}
+                    onChange={(e) => setEvtLocation(e.target.value)}
+                    placeholder="e.g. Colombo 07"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Date Inputs (Month, Day, Full Date String) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Month Badge (3 letters)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={4}
+                    value={evtMonth}
+                    onChange={(e) => setEvtMonth(e.target.value.toUpperCase())}
+                    placeholder="e.g. OCT"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none font-bold text-center uppercase"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Day Badge
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={3}
+                    value={evtDay}
+                    onChange={(e) => setEvtDay(e.target.value)}
+                    placeholder="e.g. 18"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none font-bold text-center"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Full Date Display
+                  </label>
+                  <input
+                    type="text"
+                    value={evtDate}
+                    onChange={(e) => setEvtDate(e.target.value)}
+                    placeholder="e.g. OCT 18 - 20, 2026"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Time & Organizer */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Event Time
+                  </label>
+                  <input
+                    type="text"
+                    value={evtTime}
+                    onChange={(e) => setEvtTime(e.target.value)}
+                    placeholder="e.g. 10:00 AM - 08:00 PM"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Organizer Name
+                  </label>
+                  <input
+                    type="text"
+                    value={evtOrganizer}
+                    onChange={(e) => setEvtOrganizer(e.target.value)}
+                    placeholder="e.g. Lanka Comic Con / BMICH"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Admission / Price & Free Checkbox */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 items-end">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Admission Price
+                  </label>
+                  <input
+                    type="text"
+                    disabled={evtIsFree}
+                    value={evtIsFree ? 'Free Entry' : evtPrice}
+                    onChange={(e) => setEvtPrice(e.target.value)}
+                    placeholder="e.g. LKR 1,500 or Free Entry"
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm focus:border-[#FF5A36] outline-none font-medium ${
+                      evtIsFree ? 'bg-gray-100 border-gray-200 text-gray-500' : 'border-gray-300 text-gray-900'
+                    }`}
+                  />
+                </div>
+
+                <div className="flex items-center gap-2.5 p-2.5 rounded-xl border border-gray-200 bg-gray-50">
+                  <input
+                    id="free-entry-check"
+                    type="checkbox"
+                    checked={evtIsFree}
+                    onChange={(e) => {
+                      setEvtIsFree(e.target.checked);
+                      if (e.target.checked) setEvtPrice('Free Entry');
+                    }}
+                    className="w-4 h-4 rounded text-[#FF5A36] focus:ring-[#FF5A36] border-gray-300 cursor-pointer"
+                  />
+                  <label htmlFor="free-entry-check" className="text-xs font-bold text-gray-800 cursor-pointer">
+                    Free Entry for Attendees
+                  </label>
+                </div>
+              </div>
+
+              {/* Badge & Expected Attendees */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Highlight Badge Tag
+                  </label>
+                  <input
+                    type="text"
+                    value={evtBadge}
+                    onChange={(e) => setEvtBadge(e.target.value)}
+                    placeholder="e.g. Popular, Featured, Tech Summit"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none font-medium"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Expected Attendees
+                  </label>
+                  <input
+                    type="number"
+                    value={evtAttendees}
+                    onChange={(e) => setEvtAttendees(Number(e.target.value))}
+                    placeholder="e.g. 2500"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Image URL & Preview */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Banner Image URL
+                </label>
+                <input
+                  type="url"
+                  value={evtImage}
+                  onChange={(e) => setEvtImage(e.target.value)}
+                  placeholder="https://images.unsplash.com/..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none font-mono text-xs"
+                />
+                {evtImage && (
+                  <div className="mt-2 h-24 w-full rounded-xl overflow-hidden border border-gray-200 relative bg-gray-100">
+                    <img
+                      src={evtImage}
+                      alt="Banner Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=80';
+                      }}
+                    />
+                    <span className="absolute bottom-1 right-2 bg-black/70 text-white text-[10px] font-semibold px-2 py-0.5 rounded">
+                      Image Preview
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Description
+                </label>
+                <textarea
+                  rows={3}
+                  value={evtDescription}
+                  onChange={(e) => setEvtDescription(e.target.value)}
+                  placeholder="Provide an engaging description of what attendees can expect..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none resize-none font-medium"
+                />
+              </div>
+
+              {/* Spotlight Toggle */}
+              <div className="p-4 rounded-2xl bg-orange-50/80 border border-orange-200 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-orange-500 text-white flex items-center justify-center font-bold">
+                    <Star className="w-4 h-4 fill-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-extrabold text-gray-900">
+                      Feature in "Upcoming Spotlight" Banner
+                    </h4>
+                    <p className="text-[11px] text-gray-600">
+                      When enabled, this event is showcased in the prominent horizontal carousel on the Huta In homepage.
+                    </p>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={evtIsSpotlight}
+                  onChange={(e) => setEvtIsSpotlight(e.target.checked)}
+                  className="w-5 h-5 rounded text-[#FF5A36] focus:ring-[#FF5A36] border-gray-300 cursor-pointer"
+                />
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="pt-3 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsEventModalOpen(false)}
+                  className="w-1/3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingEvent}
+                  className="w-2/3 py-2.5 bg-[#FF5A36] hover:bg-[#E04826] text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-md cursor-pointer"
+                >
+                  {isSubmittingEvent ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Saving Event...</span>
+                    </>
+                  ) : (
+                    <span>{editingEvent ? 'Save Changes' : 'Publish Spotlight Event'}</span>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
+        </div>
+      )}
+    </div>
           <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
             Admin Control Dashboard
           </h2>
@@ -146,7 +757,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
         <div
           onClick={() => setFilterTab('all')}
           className={`p-6 rounded-2xl border transition-all cursor-pointer ${
@@ -160,7 +771,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <Layers className="w-5 h-5 text-gray-400" />
           </div>
           <div className="text-3xl font-extrabold text-[#111217]">{total}</div>
-          <p className="text-xs text-gray-400 mt-1">Across all districts</p>
+          <p className="text-xs text-gray-400 mt-1">Across all categories & districts</p>
         </div>
 
         <div
@@ -194,45 +805,259 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="text-3xl font-extrabold text-[#FF5A36]">{featured}</div>
           <p className="text-xs text-[#FF5A36]/70 mt-1">Highlighted on homepage</p>
         </div>
+
+        <div
+          onClick={() => setFilterTab('services')}
+          className={`p-6 rounded-2xl border transition-all cursor-pointer ${
+            filterTab === 'services'
+              ? 'bg-white border-blue-600 shadow-lg -translate-y-1'
+              : 'bg-white border-gray-200 hover:border-gray-300'
+          }`}
+        >
+          <div className="flex items-center justify-between text-blue-600 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">Services & Trades</span>
+            <Wrench className="w-5 h-5 text-blue-500" />
+          </div>
+          <div className="text-3xl font-extrabold text-blue-600">{servicesCount}</div>
+          <p className="text-xs text-blue-600/80 mt-1 font-medium">
+            {verifiedProsCount} Verified Pro badges active
+          </p>
+        </div>
+
+        <div
+          id="admin-metric-spotlight"
+          onClick={() => setFilterTab('spotlight')}
+          className={`p-6 rounded-2xl border transition-all cursor-pointer ${
+            filterTab === 'spotlight'
+              ? 'bg-white border-[#FF5A36] shadow-lg -translate-y-1 ring-2 ring-[#FF5A36]/20'
+              : 'bg-white border-gray-200 hover:border-gray-300'
+          }`}
+        >
+          <div className="flex items-center justify-between text-[#FF5A36] mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">Upcoming Spotlight</span>
+            <Sparkles className="w-5 h-5 text-[#FF5A36]" />
+          </div>
+          <div className="text-3xl font-extrabold text-[#FF5A36]">{spotlightEventsCount}</div>
+          <p className="text-xs text-gray-500 mt-1 font-medium">
+            {localEvents.length} events • Click to manage
+          </p>
+        </div>
       </div>
 
-      {/* Table Section */}
+      {/* Admin Strategy: How Admin Benefits from Services */}
+      <div className="bg-gradient-to-br from-[#0A2540] to-[#123962] text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-blue-900/50">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center font-bold">
+              <DollarSign className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
+                Admin Monetization Strategy: Services Section
+              </h3>
+              <p className="text-xs text-blue-200">
+                Four proven revenue streams for the platform administrator from the Services directory
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowMonetizationGuide(!showMonetizationGuide)}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-blue-100 transition-colors cursor-pointer"
+          >
+            {showMonetizationGuide ? 'Collapse Guide' : 'View Revenue Streams'}
+          </button>
+        </div>
+
+        {showMonetizationGuide && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+            <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-4 border border-white/10 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-1.5 text-emerald-300 text-xs font-extrabold uppercase tracking-wider mb-2">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>1. Verified Pro Fee</span>
+                </div>
+                <h4 className="font-bold text-sm text-white mb-1">
+                  Monthly / Annual Verification
+                </h4>
+                <p className="text-xs text-blue-100 leading-relaxed">
+                  Charge service providers <strong>Rs. 2,500 – 5,000 / month</strong> (or Rs. 15,000 / yr) to review their NIC & trade licenses and award the official <em>HUTA Verified Pro</em> trust badge.
+                </p>
+              </div>
+              <div className="mt-3 pt-2.5 border-t border-white/10 text-[11px] text-emerald-300 font-semibold">
+                ✓ 5x higher consumer trust & conversion
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-4 border border-white/10 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-1.5 text-amber-300 text-xs font-extrabold uppercase tracking-wider mb-2">
+                  <Sparkles className="w-4 h-4" />
+                  <span>2. Sponsored Category Spot</span>
+                </div>
+                <h4 className="font-bold text-sm text-white mb-1">
+                  Top-of-Trade Placement
+                </h4>
+                <p className="text-xs text-blue-100 leading-relaxed">
+                  Technicians gladly pay to be pinned as the <strong>#1 or #2 spot</strong> for high-intent searches (e.g. <em>AC Repair Colombo</em> or <em>Plumber Kandy</em>).
+                </p>
+              </div>
+              <div className="mt-3 pt-2.5 border-t border-white/10 text-[11px] text-amber-300 font-semibold">
+                ✓ Recurring monthly sponsorship
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-4 border border-white/10 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-1.5 text-orange-300 text-xs font-extrabold uppercase tracking-wider mb-2">
+                  <TrendingUp className="w-4 h-4" />
+                  <span>3. 24/7 Emergency Upgrade</span>
+                </div>
+                <h4 className="font-bold text-sm text-white mb-1">
+                  Urgent Callout Priority
+                </h4>
+                <p className="text-xs text-blue-100 leading-relaxed">
+                  Charge an emergency priority surcharge for towing, breakdown repair, plumbing leaks, and electrical technicians to highlight their 24/7 availability banner.
+                </p>
+              </div>
+              <div className="mt-3 pt-2.5 border-t border-white/10 text-[11px] text-orange-300 font-semibold">
+                ✓ High-margin immediate listing boost
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-4 border border-white/10 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center gap-1.5 text-sky-300 text-xs font-extrabold uppercase tracking-wider mb-2">
+                  <Briefcase className="w-4 h-4" />
+                  <span>4. Direct Lead Routing</span>
+                </div>
+                <h4 className="font-bold text-sm text-white mb-1">
+                  WhatsApp Quote Inquiries
+                </h4>
+                <p className="text-xs text-blue-100 leading-relaxed">
+                  Consumers use the integrated WhatsApp quote button. The admin can package verified homeowner repair leads and sell bulk lead credits (e.g. 25 client inquiries).
+                </p>
+              </div>
+              <div className="mt-3 pt-2.5 border-t border-white/10 text-[11px] text-sky-300 font-semibold">
+                ✓ Scalable B2B lead generation
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Table & Management Section */}
       <div className="bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
-        {/* Tab Filters */}
-        <div className="p-4 sm:p-6 border-b border-gray-100 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setFilterTab('all')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              filterTab === 'all'
-                ? 'bg-[#181920] text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            All Ads ({total})
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilterTab('pending')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              filterTab === 'pending'
-                ? 'bg-amber-500 text-white'
-                : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-            }`}
-          >
-            Pending Review ({pending})
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilterTab('featured')}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              filterTab === 'featured'
-                ? 'bg-[#FF5A36] text-white'
-                : 'bg-orange-50 text-[#FF5A36] hover:bg-orange-100'
-            }`}
-          >
-            Featured ({featured})
-          </button>
+        {/* Tab Filters & Search */}
+        <div className="p-4 sm:p-6 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setFilterTab('all')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filterTab === 'all'
+                  ? 'bg-[#181920] text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              All Ads ({total})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterTab('pending')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filterTab === 'pending'
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+              }`}
+            >
+              Pending Review ({pending})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterTab('featured')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filterTab === 'featured'
+                  ? 'bg-[#FF5A36] text-white'
+                  : 'bg-orange-50 text-[#FF5A36] hover:bg-orange-100'
+              }`}
+            >
+              Featured ({featured})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterTab('services')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                filterTab === 'services'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+              }`}
+            >
+              Services & Trades ({servicesCount})
+            </button>
+            <button
+              id="admin-filter-spotlight-tab"
+              type="button"
+              onClick={() => setFilterTab('spotlight')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                filterTab === 'spotlight'
+                  ? 'bg-[#FF5A36] text-white shadow-sm'
+                  : 'bg-orange-50 text-[#FF5A36] hover:bg-orange-100 border border-orange-200/60'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Upcoming Spotlight ({spotlightEventsCount})</span>
+            </button>
+          </div>
+
+          {filterTab === 'spotlight' && (
+            <button
+              id="admin-add-event-btn"
+              type="button"
+              onClick={openAddEvent}
+              className="flex items-center gap-2 px-4 py-2 bg-[#FF5A36] hover:bg-[#E04826] text-white rounded-xl text-xs font-bold transition-colors shadow-sm cursor-pointer ml-auto"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add New Event / Spotlight</span>
+            </button>
+          )}
+
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-64">
+              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search title, phone, author..."
+                className="w-full pl-8 pr-7 py-1.5 rounded-xl border border-gray-200 text-xs focus:border-[#FF5A36] outline-none"
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+
+            <select
+              value={selectedDistrict}
+              onChange={(e) => setSelectedDistrict(e.target.value)}
+              className="px-2.5 py-1.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 bg-white outline-none focus:border-[#FF5A36]"
+            >
+              <option value="all">All Districts</option>
+              <option value="Colombo">Colombo</option>
+              <option value="Gampaha">Gampaha</option>
+              <option value="Kandy">Kandy</option>
+              <option value="Galle">Galle</option>
+              <option value="Kalutara">Kalutara</option>
+              <option value="Kurunegala">Kurunegala</option>
+            </select>
+          </div>
         </div>
 
         {/* Table Content */}
@@ -344,6 +1169,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           >
                             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                             <span>{item.isFeatured ? 'Unfeature' : 'Feature'}</span>
+                          </button>
+                        )}
+
+                        {onToggleVerifyPro && (item.category === 'Services' || item.serviceTrade) && (
+                          <button
+                            type="button"
+                            onClick={() => onToggleVerifyPro(item.id)}
+                            title={item.isVerifiedPro ? 'Revoke Verified Pro Badge' : 'Award Verified Pro Badge'}
+                            className={`inline-flex items-center gap-1 text-xs font-bold py-1.5 px-2.5 rounded-lg transition-colors ${
+                              item.isVerifiedPro
+                                ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border border-emerald-300'
+                                : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                            }`}
+                          >
+                            <ShieldCheck className={`w-3.5 h-3.5 ${item.isVerifiedPro ? 'text-emerald-600' : 'text-blue-600'}`} />
+                            <span>{item.isVerifiedPro ? 'Verified Pro' : 'Verify Pro'}</span>
+                          </button>
+                        )}
+
+                        {onEditListing && (
+                          <button
+                            type="button"
+                            onClick={() => onEditListing(item)}
+                            title="Edit advertisement details (Title, Price, Trade, Location, Status, etc.)"
+                            className="inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold py-1.5 px-2.5 rounded-lg transition-colors border border-amber-200 cursor-pointer"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Edit</span>
                           </button>
                         )}
 

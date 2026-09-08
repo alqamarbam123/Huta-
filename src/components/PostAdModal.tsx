@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Listing, User } from '../types';
-import { X, Sparkles, Image as ImageIcon, Loader2, UploadCloud } from 'lucide-react';
+import { X, Sparkles, Image as ImageIcon, Loader2, UploadCloud, Wrench, ShieldCheck } from 'lucide-react';
 import { api } from '../services/api';
 
 interface PostAdModalProps {
@@ -10,6 +10,7 @@ interface PostAdModalProps {
   onSubmitAd: (data: Partial<Listing>, isEditId?: string) => Promise<void>;
   editingListing: Listing | null;
   currentUser: User | null;
+  isAdminLoggedIn?: boolean;
   onToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 }
 
@@ -22,6 +23,36 @@ const CATEGORIES = [
   'Fashion',
   'Services',
   'Jobs',
+];
+
+const SERVICE_TRADES = [
+  'AC Repair & Servicing',
+  'Automotive Services & Breakdown',
+  'Cleaning Services (Home & Office)',
+  'Furniture Moving & Transport',
+  'Plumbing & Sanitary Works',
+  'Electrician & Electrical Wiring',
+  'Pest Control & Extermination',
+  'Maintenance Services & Handyman',
+  'Events, DJ & Photography',
+  'Education, Tuition & Coaching',
+  'Fashion, Tailoring & Styling',
+  'Health & Wellness',
+  'Legal, Financial & Consultancy',
+  'Pet Care & Veterinary Services',
+  'Painting & Waterproofing',
+  'Carpentry & Masonry',
+  'IT, Laptop & Phone Repair',
+  'Other Professional Services',
+];
+
+const SERVICE_AREAS = [
+  'Colombo & Greater Suburbs',
+  'All Western Province (Colombo, Gampaha, Kalutara)',
+  'Kandy & Central Province',
+  'Galle & Southern Coastal District',
+  'Islandwide (All 25 Districts)',
+  'Local District Only',
 ];
 
 const DISTRICTS = [
@@ -58,6 +89,7 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
   onSubmitAd,
   editingListing,
   currentUser,
+  isAdminLoggedIn,
   onToast,
 }) => {
   const [title, setTitle] = useState('');
@@ -68,6 +100,17 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [imagePreview, setImagePreview] = useState('');
+
+  // Specialized Service Fields
+  const [serviceTrade, setServiceTrade] = useState('AC Repair & Servicing');
+  const [pricingType, setPricingType] = useState<'fixed' | 'starting_at' | 'hourly' | 'quote'>('starting_at');
+  const [serviceArea, setServiceArea] = useState('Colombo & Greater Suburbs');
+  const [isEmergency247, setIsEmergency247] = useState(false);
+
+  // Admin Overrides & Status Controls
+  const [adminStatus, setAdminStatus] = useState<'approved' | 'pending' | 'rejected'>('approved');
+  const [adminIsFeatured, setAdminIsFeatured] = useState(false);
+  const [adminIsVerifiedPro, setAdminIsVerifiedPro] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
@@ -82,6 +125,13 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
       setDescription(editingListing.description);
       setImageUrl(editingListing.image || '');
       setImagePreview(editingListing.image || '');
+      setServiceTrade(editingListing.serviceTrade || 'AC Repair & Servicing');
+      setPricingType(editingListing.pricingType || (editingListing.category === 'Services' ? 'starting_at' : 'fixed'));
+      setServiceArea(editingListing.serviceArea || 'Colombo & Greater Suburbs');
+      setIsEmergency247(Boolean(editingListing.isEmergency247));
+      setAdminStatus(editingListing.status || 'approved');
+      setAdminIsFeatured(Boolean(editingListing.isFeatured));
+      setAdminIsVerifiedPro(Boolean(editingListing.isVerifiedPro));
     } else {
       // Defaults
       setTitle('');
@@ -92,6 +142,13 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
       setDescription('');
       setImageUrl('');
       setImagePreview('');
+      setServiceTrade('AC Repair & Servicing');
+      setPricingType('starting_at');
+      setServiceArea('Colombo & Greater Suburbs');
+      setIsEmergency247(false);
+      setAdminStatus('approved');
+      setAdminIsFeatured(false);
+      setAdminIsVerifiedPro(false);
     }
   }, [editingListing, isOpen]);
 
@@ -149,7 +206,8 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title.trim() || !price || !phone.trim() || !description.trim()) {
+    const isService = category === 'Services';
+    if (!title.trim() || (!price && pricingType !== 'quote') || !phone.trim() || !description.trim()) {
       onToast('Please fill in all required fields.', 'error');
       return;
     }
@@ -160,11 +218,20 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
         title: title.trim(),
         category,
         location,
-        price: parseFloat(price),
+        price: isService && pricingType === 'quote' ? 0 : parseFloat(price || '0'),
         phone: phone.trim(),
         description: description.trim(),
-        image: imagePreview || imageUrl.trim() || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80',
-        userId: currentUser ? currentUser.id : 'system',
+        image: imagePreview || imageUrl.trim() || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80',
+        userId: editingListing ? editingListing.userId : (currentUser ? currentUser.id : 'system'),
+        serviceTrade: isService ? serviceTrade : undefined,
+        pricingType: isService ? pricingType : 'fixed',
+        serviceArea: isService ? serviceArea : undefined,
+        isEmergency247: isService ? isEmergency247 : false,
+        ...(isAdminLoggedIn ? {
+          status: adminStatus,
+          isFeatured: adminIsFeatured,
+          isVerifiedPro: isService ? adminIsVerifiedPro : false,
+        } : {}),
       };
 
       await onSubmitAd(payload, editingListing ? editingListing.id : undefined);
@@ -196,11 +263,22 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
       >
         <div className="flex items-center justify-between pb-4 border-b border-gray-100">
           <div>
-            <h3 className="text-xl font-extrabold text-[#181920]">
-              {editingListing ? 'Edit Your Advertisement' : 'Post an Ad on HUTA.lk'}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xl font-extrabold text-[#181920]">
+                {isAdminLoggedIn && editingListing
+                  ? 'Admin: Edit Listing Details'
+                  : (editingListing ? 'Edit Your Advertisement' : 'Post an Ad on HUTA.lk')}
+              </h3>
+              {isAdminLoggedIn && (
+                <span className="text-[10px] font-extrabold uppercase bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full border border-amber-300">
+                  Admin Master
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-500 mt-0.5">
-              Reach thousands of prospective buyers across Sri Lanka
+              {isAdminLoggedIn && editingListing
+                ? `Administrator Mode — Modify any listing parameter • ID: ${editingListing.id}`
+                : 'Reach thousands of prospective buyers across Sri Lanka'}
             </p>
           </div>
           <button
@@ -249,7 +327,7 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
 
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                District / Location <span className="text-[#FF5A36]">*</span>
+                District / Base City <span className="text-[#FF5A36]">*</span>
               </label>
               <select
                 value={location}
@@ -265,28 +343,137 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
             </div>
           </div>
 
+          {/* Specialized Fields for Services */}
+          {category === 'Services' && (
+            <div className="p-3.5 sm:p-4 bg-gradient-to-br from-blue-50/70 to-indigo-50/40 rounded-2xl border border-blue-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#0A2540] flex items-center gap-1.5">
+                  <Wrench className="w-4 h-4 text-[#FF5A36]" />
+                  Professional Service Details
+                </span>
+                <span className="text-[10px] text-blue-700 bg-blue-100/80 font-bold px-2 py-0.5 rounded-md">
+                  Service Directory
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Specialized Trade / Profession <span className="text-[#FF5A36]">*</span>
+                  </label>
+                  <select
+                    value={serviceTrade}
+                    onChange={(e) => setServiceTrade(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs focus:border-[#FF5A36] outline-none bg-white cursor-pointer"
+                  >
+                    {SERVICE_TRADES.map((trade) => (
+                      <option key={trade} value={trade}>
+                        {trade}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Service Area Coverage <span className="text-[#FF5A36]">*</span>
+                  </label>
+                  <select
+                    value={serviceArea}
+                    onChange={(e) => setServiceArea(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs focus:border-[#FF5A36] outline-none bg-white cursor-pointer"
+                  >
+                    {SERVICE_AREAS.map((area) => (
+                      <option key={area} value={area}>
+                        {area}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Pricing Model Selector */}
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+                  Pricing Model
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                  {[
+                    { id: 'starting_at', label: 'Starting From' },
+                    { id: 'hourly', label: 'Per Hour' },
+                    { id: 'fixed', label: 'Fixed Job' },
+                    { id: 'quote', label: 'Free Estimate / Quote' },
+                  ].map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => {
+                        setPricingType(p.id as any);
+                        if (p.id === 'quote') setPrice('0');
+                      }}
+                      className={`py-1.5 px-2 rounded-xl text-xs font-semibold transition-all ${
+                        pricingType === p.id
+                          ? 'bg-[#0A2540] text-white shadow-xs'
+                          : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 24/7 Emergency Service Toggle */}
+              <label className="flex items-center gap-2.5 pt-1 cursor-pointer select-none bg-white/70 p-2.5 rounded-xl border border-blue-100">
+                <input
+                  type="checkbox"
+                  checked={isEmergency247}
+                  onChange={(e) => setIsEmergency247(e.target.checked)}
+                  className="w-4 h-4 rounded text-[#FF5A36] focus:ring-[#FF5A36] border-gray-300 accent-[#FF5A36]"
+                />
+                <div className="text-xs">
+                  <span className="font-bold text-gray-900">⚡ 24/7 Emergency Service</span>
+                  <span className="text-gray-500 block text-[10px]">
+                    Available for urgent callouts (e.g. breakdown, plumbing leak, power fault)
+                  </span>
+                </div>
+              </label>
+            </div>
+          )}
+
           {/* Price and Phone */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                Price (LKR) <span className="text-[#FF5A36]">*</span>
+                {category === 'Services' && pricingType === 'quote'
+                  ? 'Pricing'
+                  : category === 'Services' && pricingType === 'starting_at'
+                  ? 'Starting Rate (LKR) *'
+                  : category === 'Services' && pricingType === 'hourly'
+                  ? 'Hourly Rate (LKR/hr) *'
+                  : 'Price (LKR) *'}
               </label>
               <div className="relative">
                 <span className="absolute left-3.5 top-2.5 text-gray-400 font-bold text-xs">Rs</span>
                 <input
                   type="number"
-                  required
-                  value={price}
+                  required={!(category === 'Services' && pricingType === 'quote')}
+                  disabled={category === 'Services' && pricingType === 'quote'}
+                  value={category === 'Services' && pricingType === 'quote' ? '' : price}
                   onChange={(e) => setPrice(e.target.value)}
-                  placeholder="250000"
-                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none"
+                  placeholder={
+                    category === 'Services' && pricingType === 'quote'
+                      ? 'Free Estimate on Request'
+                      : '2500'
+                  }
+                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none disabled:bg-gray-100 disabled:text-gray-500"
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                Contact Phone <span className="text-[#FF5A36]">*</span>
+                Contact Phone / WhatsApp <span className="text-[#FF5A36]">*</span>
               </label>
               <input
                 type="tel"
@@ -388,6 +575,68 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
             />
           </div>
 
+          {/* Admin Moderation & Trust Badge Controls */}
+          {isAdminLoggedIn && (
+            <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider">
+                  <ShieldCheck className="w-4 h-4 text-amber-600" />
+                  <span>Admin Moderation & Badge Controls</span>
+                </div>
+                {editingListing?.userId && (
+                  <span className="text-[10px] text-gray-500 font-mono">
+                    Author: {editingListing.userId}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Listing Status
+                  </label>
+                  <select
+                    value={adminStatus}
+                    onChange={(e) => setAdminStatus(e.target.value as 'approved' | 'pending' | 'rejected')}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-semibold bg-white text-gray-800 outline-none focus:border-[#FF5A36]"
+                  >
+                    <option value="approved">Approved (Live)</option>
+                    <option value="pending">Pending (Review)</option>
+                    <option value="rejected">Rejected (Hidden)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2 pt-1 sm:pt-4">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={adminIsFeatured}
+                      onChange={(e) => setAdminIsFeatured(e.target.checked)}
+                      className="w-4 h-4 text-[#FF5A36] accent-[#FF5A36] rounded"
+                    />
+                    <span className="text-xs font-semibold text-gray-800">
+                      Feature on Homepage
+                    </span>
+                  </label>
+
+                  {category === 'Services' && (
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={adminIsVerifiedPro}
+                        onChange={(e) => setAdminIsVerifiedPro(e.target.checked)}
+                        className="w-4 h-4 text-emerald-600 accent-emerald-600 rounded"
+                      />
+                      <span className="text-xs font-semibold text-emerald-900">
+                        HUTA Verified Pro Badge
+                      </span>
+                    </label>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Submit CTA */}
           <div className="pt-2">
             <button
@@ -401,7 +650,13 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
                   <span>Saving Advertisement...</span>
                 </>
               ) : (
-                <span>{editingListing ? 'Update Advertisement' : 'Publish Advertisement'}</span>
+                <span>
+                  {isAdminLoggedIn && editingListing
+                    ? 'Save Admin Changes'
+                    : editingListing
+                    ? 'Update Advertisement'
+                    : 'Publish Advertisement'}
+                </span>
               )}
             </button>
           </div>

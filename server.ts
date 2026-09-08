@@ -17,6 +17,11 @@ interface Listing {
   date: string;
   userId: string;
   views: number;
+  serviceTrade?: string;
+  pricingType?: 'fixed' | 'starting_at' | 'hourly' | 'quote';
+  serviceArea?: string;
+  isVerifiedPro?: boolean;
+  isEmergency247?: boolean;
 }
 
 interface User {
@@ -30,10 +35,32 @@ interface User {
   created: string;
 }
 
+interface EventItem {
+  id: string;
+  title: string;
+  category: string;
+  district: string;
+  date: string;
+  month: string;
+  day: string;
+  time: string;
+  location: string;
+  venue: string;
+  image: string;
+  badge?: string;
+  price: string;
+  isFree: boolean;
+  attendees: number;
+  description: string;
+  organizer: string;
+  isSpotlight?: boolean;
+}
+
 const PORT = 3000;
 const DATA_DIR = path.join(process.cwd(), 'data');
 const LISTINGS_FILE = path.join(DATA_DIR, 'listings.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
 const ADMIN_CONFIG_FILE = path.join(DATA_DIR, 'admin.json');
 
 function getAdminPassword(): string {
@@ -198,8 +225,196 @@ function saveStoredUsers(users: User[]) {
   }
 }
 
+const DEFAULT_EVENTS: EventItem[] = [
+  {
+    id: 'cardcon_lanka',
+    title: 'CARDCON & Collectibles Expo 2026',
+    category: 'Entertainment',
+    district: 'Colombo',
+    date: 'OCT 18 - 20, 2026',
+    month: 'OCT',
+    day: '18',
+    time: '10:00 AM - 08:00 PM',
+    location: 'Colombo 07',
+    venue: 'BMICH Exhibition Centre, Hall A',
+    image: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80',
+    badge: 'Popular',
+    price: 'Free Entry',
+    isFree: true,
+    attendees: 4200,
+    description: 'Sri Lanka’s premier trading card, gaming, pop culture, and collectible convention. Trade rare Pokémon, sports cards, comics, and participate in competitive tabletop showdowns.',
+    organizer: 'Lanka Collectors Guild',
+    isSpotlight: true,
+  },
+  {
+    id: 'colombo_motor_show',
+    title: 'Ceylon International Motor Show',
+    category: 'Exhibitions',
+    district: 'Colombo',
+    date: 'NOV 05 - 08, 2026',
+    month: 'NOV',
+    day: '05',
+    time: '09:00 AM - 09:00 PM',
+    location: 'Colombo 01',
+    venue: 'Colombo Port City Marina Boulevard',
+    image: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&auto=format&fit=crop&q=80',
+    badge: 'Featured',
+    price: 'LKR 1,500',
+    isFree: false,
+    attendees: 12500,
+    description: 'The premier automotive showcase featuring electric mobility, supercars, vintage classics, 4x4 overland rigs, and live drift exhibitions.',
+    organizer: 'Ceylon Motor Sports Club',
+    isSpotlight: true,
+  },
+  {
+    id: 'galle_food_fest',
+    title: 'Southern Spice & Seafood Festival',
+    category: 'Food & Culture',
+    district: 'Galle',
+    date: 'DEC 12 - 14, 2026',
+    month: 'DEC',
+    day: '12',
+    time: '04:00 PM - 11:30 PM',
+    location: 'Galle Fort',
+    venue: 'Galle Fort Ramparts Lawn',
+    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80',
+    badge: 'Culinary',
+    price: 'Free Entry',
+    isFree: true,
+    attendees: 8900,
+    description: 'Authentic southern Sri Lankan seafood curries, artisanal bakeries, live acoustic island bands, and sunset ocean dining.',
+    organizer: 'Galle Heritage Tourism',
+    isSpotlight: true,
+  },
+  {
+    id: 'lanka_comic_con',
+    title: 'Lanka Comic Con & Gaming Arena',
+    category: 'Entertainment',
+    district: 'Colombo',
+    date: 'JAN 22 - 24, 2027',
+    month: 'JAN',
+    day: '22',
+    time: '11:00 AM - 09:00 PM',
+    location: 'Battaramulla',
+    venue: 'SLECC Exhibition Hall',
+    image: 'https://images.unsplash.com/photo-1563089145-599997674d42?w=800&auto=format&fit=crop&q=80',
+    badge: 'Gaming',
+    price: 'LKR 800',
+    isFree: false,
+    attendees: 6400,
+    description: 'Cosplay championships, international indie game stalls, VR gaming suites, artist alleys, and tabletop tournaments.',
+    organizer: 'Geek Club of Sri Lanka',
+    isSpotlight: true,
+  },
+  {
+    id: 'kandy_heritage_fest',
+    title: 'Kandy Hill Country Crafts & Culture',
+    category: 'Food & Culture',
+    district: 'Kandy',
+    date: 'FEB 04 - 07, 2027',
+    month: 'FEB',
+    day: '04',
+    time: '10:00 AM - 08:30 PM',
+    location: 'Kandy',
+    venue: 'Kandy Lake Round Promenade',
+    image: 'https://images.unsplash.com/photo-1609137144822-4752c0f4553a?w=800&auto=format&fit=crop&q=80',
+    badge: 'Cultural',
+    price: 'Free Entry',
+    isFree: true,
+    attendees: 5100,
+    description: 'Traditional Kandyan brassware, handloom weaving masterclasses, Ceylon spice exhibits, and authentic hill-country culinary treats.',
+    organizer: 'Central Province Cultural Dept',
+    isSpotlight: false,
+  },
+  {
+    id: 'tech_summit_colombo',
+    title: 'AI & Digital Sri Lanka Summit',
+    category: 'Tech',
+    district: 'Colombo',
+    date: 'FEB 20 - 21, 2027',
+    month: 'FEB',
+    day: '20',
+    time: '08:30 AM - 05:30 PM',
+    location: 'Colombo 03',
+    venue: 'Cinnamon Grand Colombo, Oak Room',
+    image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=80',
+    badge: 'Tech Summit',
+    price: 'Registration Req.',
+    isFree: false,
+    attendees: 3100,
+    description: 'Keynotes from top global AI pioneers, venture capital speed-dating, startup pitch battle with USD 25k in grants, and engineering workshops.',
+    organizer: 'SLASSCOM & Tech Lanka',
+    isSpotlight: false,
+  },
+  {
+    id: 'jaffna_music_fiesta',
+    title: 'Northern Beats & Food Carnival',
+    category: 'Food & Culture',
+    district: 'Jaffna',
+    date: 'MAR 14 - 15, 2027',
+    month: 'MAR',
+    day: '14',
+    time: '05:00 PM - 11:00 PM',
+    location: 'Jaffna',
+    venue: 'Jaffna Cultural Centre Open Arena',
+    image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&auto=format&fit=crop&q=80',
+    badge: 'Live Music',
+    price: 'Free Entry',
+    isFree: true,
+    attendees: 7300,
+    description: 'Celebration of northern Sri Lankan flavours (authentic Jaffna crab curry, Odiyal Kool), Carnatic fusion bands, and fire performances.',
+    organizer: 'Northern Tourism Bureau',
+    isSpotlight: false,
+  },
+  {
+    id: 'negombo_beach_fest',
+    title: 'Negombo Coastline Beach Fest & Regatta',
+    category: 'Sports',
+    district: 'Negombo',
+    date: 'APR 03 - 05, 2027',
+    month: 'APR',
+    day: '03',
+    time: '08:00 AM - 10:00 PM',
+    location: 'Negombo',
+    venue: 'Negombo Beach Park Golden Sands',
+    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80',
+    badge: 'Beach & Sports',
+    price: 'Free Entry',
+    isFree: true,
+    attendees: 9800,
+    description: 'Catamaran regatta races, beach volleyball tournament, live acoustic sets by the shore, and sundown cocktail lounges.',
+    organizer: 'Negombo Municipal Council',
+    isSpotlight: false,
+  }
+];
+
+function getStoredEvents(): EventItem[] {
+  try {
+    if (fs.existsSync(EVENTS_FILE)) {
+      const data = fs.readFileSync(EVENTS_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.error('Error reading events file, fallback to defaults', err);
+  }
+  saveStoredEvents(DEFAULT_EVENTS);
+  return DEFAULT_EVENTS;
+}
+
+function saveStoredEvents(events: EventItem[]) {
+  try {
+    fs.writeFileSync(EVENTS_FILE, JSON.stringify(events, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error saving events file', err);
+  }
+}
+
 let listingsCache = getStoredListings();
 let usersCache = getStoredUsers();
+let eventsCache = getStoredEvents();
 
 // Lazy initialize Gemini client
 let genAIClient: GoogleGenAI | null = null;
@@ -299,7 +514,21 @@ async function startServer() {
 
   // POST /api/listings
   app.post('/api/listings', (req, res) => {
-    const { title, category, location, price, phone, image, description, userId } = req.body;
+    const {
+      title,
+      category,
+      location,
+      price,
+      phone,
+      image,
+      description,
+      userId,
+      serviceTrade,
+      pricingType,
+      serviceArea,
+      isVerifiedPro,
+      isEmergency247,
+    } = req.body;
 
     if (!title || !category || !location || price === undefined || !phone || !description) {
       return res.status(400).json({ error: 'Missing required listing fields' });
@@ -318,7 +547,12 @@ async function startServer() {
       isFeatured: false,
       date: new Date().toISOString().split('T')[0],
       userId: userId ? String(userId) : 'system',
-      views: 0
+      views: 0,
+      serviceTrade: serviceTrade ? String(serviceTrade).trim() : undefined,
+      pricingType: pricingType || (category === 'Services' ? 'starting_at' : 'fixed'),
+      serviceArea: serviceArea ? String(serviceArea).trim() : undefined,
+      isVerifiedPro: Boolean(isVerifiedPro),
+      isEmergency247: Boolean(isEmergency247),
     };
 
     listingsCache.unshift(newListing);
@@ -334,7 +568,22 @@ async function startServer() {
     }
 
     const current = listingsCache[index];
-    const { title, category, location, price, phone, image, description, isFeatured, status } = req.body;
+    const {
+      title,
+      category,
+      location,
+      price,
+      phone,
+      image,
+      description,
+      isFeatured,
+      status,
+      serviceTrade,
+      pricingType,
+      serviceArea,
+      isVerifiedPro,
+      isEmergency247,
+    } = req.body;
 
     listingsCache[index] = {
       ...current,
@@ -346,9 +595,25 @@ async function startServer() {
       image: image !== undefined ? String(image) : current.image,
       description: description !== undefined ? String(description).trim() : current.description,
       isFeatured: isFeatured !== undefined ? Boolean(isFeatured) : current.isFeatured,
-      status: status !== undefined ? status : current.status
+      status: status !== undefined ? status : current.status,
+      serviceTrade: serviceTrade !== undefined ? String(serviceTrade).trim() : current.serviceTrade,
+      pricingType: pricingType !== undefined ? pricingType : current.pricingType,
+      serviceArea: serviceArea !== undefined ? String(serviceArea).trim() : current.serviceArea,
+      isVerifiedPro: isVerifiedPro !== undefined ? Boolean(isVerifiedPro) : current.isVerifiedPro,
+      isEmergency247: isEmergency247 !== undefined ? Boolean(isEmergency247) : current.isEmergency247,
     };
 
+    saveStoredListings(listingsCache);
+    res.json(listingsCache[index]);
+  });
+
+  // PUT /api/listings/:id/verify-pro
+  app.put('/api/listings/:id/verify-pro', (req, res) => {
+    const index = listingsCache.findIndex(l => l.id === req.params.id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
+    listingsCache[index].isVerifiedPro = !listingsCache[index].isVerifiedPro;
     saveStoredListings(listingsCache);
     res.json(listingsCache[index]);
   });
@@ -406,6 +671,155 @@ async function startServer() {
     listingsCache.splice(index, 1);
     saveStoredListings(listingsCache);
     res.json({ success: true, message: 'Listing deleted' });
+  });
+
+  // -------------------------------------------------------------
+  // Events & Upcoming Spotlight Routes
+  // -------------------------------------------------------------
+
+  // GET /api/events
+  app.get('/api/events', (req, res) => {
+    const { category, district, spotlight } = req.query;
+    let result = [...eventsCache];
+
+    if (spotlight === 'true') {
+      result = result.filter(e => e.isSpotlight);
+    }
+    if (category && category !== 'All') {
+      result = result.filter(e => e.category.toLowerCase() === String(category).toLowerCase());
+    }
+    if (district && district !== 'All') {
+      result = result.filter(e => e.district.toLowerCase() === String(district).toLowerCase());
+    }
+
+    res.json(result);
+  });
+
+  // POST /api/events
+  app.post('/api/events', (req, res) => {
+    const {
+      title,
+      category,
+      district,
+      date,
+      month,
+      day,
+      time,
+      location,
+      venue,
+      image,
+      badge,
+      price,
+      isFree,
+      attendees,
+      description,
+      organizer,
+      isSpotlight
+    } = req.body;
+
+    if (!title || !category || !venue) {
+      return res.status(400).json({ error: 'Title, category, and venue are required.' });
+    }
+
+    const newEvent: EventItem = {
+      id: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      title: String(title).trim(),
+      category: String(category).trim(),
+      district: district ? String(district).trim() : 'Colombo',
+      date: date ? String(date).trim() : 'Upcoming 2026',
+      month: month ? String(month).trim().toUpperCase() : 'OCT',
+      day: day ? String(day).trim() : '01',
+      time: time ? String(time).trim() : '10:00 AM - 06:00 PM',
+      location: location ? String(location).trim() : (district || 'Colombo'),
+      venue: String(venue).trim(),
+      image: image ? String(image) : 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=80',
+      badge: badge ? String(badge).trim() : 'Featured',
+      price: isFree ? 'Free Entry' : (price ? String(price).trim() : 'Free Entry'),
+      isFree: Boolean(isFree),
+      attendees: attendees ? Number(attendees) : 1000,
+      description: description ? String(description).trim() : '',
+      organizer: organizer ? String(organizer).trim() : 'HUTA Community',
+      isSpotlight: isSpotlight !== undefined ? Boolean(isSpotlight) : true,
+    };
+
+    eventsCache.unshift(newEvent);
+    saveStoredEvents(eventsCache);
+    res.status(201).json(newEvent);
+  });
+
+  // PUT /api/events/:id
+  app.put('/api/events/:id', (req, res) => {
+    const index = eventsCache.findIndex(e => e.id === req.params.id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    const current = eventsCache[index];
+    const {
+      title,
+      category,
+      district,
+      date,
+      month,
+      day,
+      time,
+      location,
+      venue,
+      image,
+      badge,
+      price,
+      isFree,
+      attendees,
+      description,
+      organizer,
+      isSpotlight
+    } = req.body;
+
+    eventsCache[index] = {
+      ...current,
+      title: title !== undefined ? String(title).trim() : current.title,
+      category: category !== undefined ? String(category).trim() : current.category,
+      district: district !== undefined ? String(district).trim() : current.district,
+      date: date !== undefined ? String(date).trim() : current.date,
+      month: month !== undefined ? String(month).trim().toUpperCase() : current.month,
+      day: day !== undefined ? String(day).trim() : current.day,
+      time: time !== undefined ? String(time).trim() : current.time,
+      location: location !== undefined ? String(location).trim() : current.location,
+      venue: venue !== undefined ? String(venue).trim() : current.venue,
+      image: image !== undefined ? String(image) : current.image,
+      badge: badge !== undefined ? String(badge).trim() : current.badge,
+      price: price !== undefined ? String(price).trim() : current.price,
+      isFree: isFree !== undefined ? Boolean(isFree) : current.isFree,
+      attendees: attendees !== undefined ? Number(attendees) : current.attendees,
+      description: description !== undefined ? String(description).trim() : current.description,
+      organizer: organizer !== undefined ? String(organizer).trim() : current.organizer,
+      isSpotlight: isSpotlight !== undefined ? Boolean(isSpotlight) : current.isSpotlight,
+    };
+
+    saveStoredEvents(eventsCache);
+    res.json(eventsCache[index]);
+  });
+
+  // PUT /api/events/:id/spotlight
+  app.put('/api/events/:id/spotlight', (req, res) => {
+    const index = eventsCache.findIndex(e => e.id === req.params.id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    eventsCache[index].isSpotlight = !eventsCache[index].isSpotlight;
+    saveStoredEvents(eventsCache);
+    res.json(eventsCache[index]);
+  });
+
+  // DELETE /api/events/:id
+  app.delete('/api/events/:id', (req, res) => {
+    const index = eventsCache.findIndex(e => e.id === req.params.id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    eventsCache.splice(index, 1);
+    saveStoredEvents(eventsCache);
+    res.json({ success: true, message: 'Event deleted' });
   });
 
   // -------------------------------------------------------------

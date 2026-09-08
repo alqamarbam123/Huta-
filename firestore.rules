@@ -60,6 +60,11 @@ service cloud.firestore {
              data.createdAt is string && data.createdAt.size() <= 64;
     }
 
+    // Connection Health Check Collection
+    match /test/{docId} {
+      allow read: if true;
+    }
+
     // Conversations Collection
     match /conversations/{conversationId} {
       // Individual document read
