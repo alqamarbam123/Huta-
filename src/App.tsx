@@ -403,7 +403,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F4F5F7] text-[#181920] pb-16 sm:pb-20">
+    <div className="min-h-screen flex flex-col bg-[#F4F5F7] text-[#181920] pb-16 lg:pb-0">
       {/* Toast Notification Layer */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
