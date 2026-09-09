@@ -29,6 +29,8 @@ interface ListingsSectionProps {
   onOpenPostAd?: () => void;
   hasActiveFilters?: boolean;
   onResetFilters?: () => void;
+  currentCategory?: string;
+  onSelectCategory?: (category: string) => void;
 }
 
 export function formatLKR(amount: number): string {
@@ -69,6 +71,8 @@ export const ListingsSection: React.FC<ListingsSectionProps> = ({
   onOpenPostAd,
   hasActiveFilters,
   onResetFilters,
+  currentCategory = 'All',
+  onSelectCategory,
 }) => {
   const isNewAd = (dateStr: string) => {
     try {
@@ -81,7 +85,36 @@ export const ListingsSection: React.FC<ListingsSectionProps> = ({
   };
 
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <section id="marketplace-listings" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 scroll-mt-20">
+      {/* Qatar Living style Category Tabs */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-3 mb-5 scrollbar-none border-b border-gray-200">
+        {[
+          { id: 'All', label: 'All Ads' },
+          { id: 'Property', label: 'Properties' },
+          { id: 'Vehicles', label: 'Vehicles' },
+          { id: 'Electronics', label: 'Classifieds' },
+          { id: 'Home & Garden', label: 'Home & Garden' },
+          { id: 'Jobs', label: 'Jobs' },
+          { id: 'Services', label: 'Services' },
+        ].map((cat) => {
+          const isActive = (currentCategory || 'All') === cat.id;
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => onSelectCategory && onSelectCategory(cat.id)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                isActive
+                  ? 'bg-[#FF5A36] text-white shadow-sm'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              {cat.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Section Header */}
       <motion.div
         initial={{ opacity: 0, y: -5 }}

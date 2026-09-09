@@ -20,6 +20,7 @@ import { AllCategoriesPage } from './components/AllCategoriesPage';
 import { HutaInPage } from './components/HutaInPage';
 import { MorePage } from './components/MorePage';
 import { testConnection } from './firebase';
+import { MapPin, Sparkles, PlusCircle, Calendar, ArrowRight, Star } from 'lucide-react';
 
 export default function App() {
   // Navigation & View State
@@ -410,6 +411,20 @@ export default function App() {
       <Navbar
         currentTab={currentTab}
         onSelectTab={(tab) => setCurrentTab(tab)}
+        onSelectCategory={(category) => {
+          setSelectedCategory(category);
+          setCurrentTab('marketplace');
+          setTimeout(() => {
+            const el = document.getElementById('marketplace-listings');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }, 50);
+        }}
+        onOpenPostAd={handleOpenPostAd}
+        onOpenUserAuth={() => setIsUserAuthOpen(true)}
+        currentUser={currentUser}
+        selectedLocation={selectedLocation}
+        onLocationChange={setSelectedLocation}
+        activeCategory={selectedCategory}
       />
 
       {/* Main Views Container */}
@@ -428,6 +443,8 @@ export default function App() {
               onMaxPriceChange={setMaxPrice}
               onResetFilters={handleResetFilters}
               hasActiveFilters={hasActiveFilters}
+              selectedCategory={selectedCategory}
+              onSelectCategory={setSelectedCategory}
             />
 
             {/* Category Browser */}
@@ -437,6 +454,45 @@ export default function App() {
               listings={listings}
               onViewAllCategories={() => setCurrentTab('categories')}
             />
+
+            {/* Qatar Living style Browse Districts Bar */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2">
+              <div className="bg-white border border-gray-200 rounded-2xl p-3 shadow-xs flex items-center gap-2 overflow-x-auto scrollbar-none text-xs">
+                <span className="flex items-center gap-1.5 text-gray-700 font-bold whitespace-nowrap shrink-0 px-2">
+                  <MapPin className="w-3.5 h-3.5 text-[#FF5A36]" />
+                  <span>Popular Districts:</span>
+                </span>
+                {[
+                  'All Sri Lanka',
+                  'Colombo',
+                  'Gampaha',
+                  'Kandy',
+                  'Galle',
+                  'Kalutara',
+                  'Kurunegala',
+                  'Jaffna',
+                  'Matara',
+                  'Anuradhapura',
+                  'Negombo',
+                ].map((dist) => {
+                  const isActive = selectedLocation === dist;
+                  return (
+                    <button
+                      key={dist}
+                      type="button"
+                      onClick={() => setSelectedLocation(dist)}
+                      className={`px-3 py-1.5 rounded-xl whitespace-nowrap font-semibold transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-[#111217] text-[#FF5A36] border border-[#FF5A36] shadow-xs'
+                          : 'bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900 border border-transparent'
+                      }`}
+                    >
+                      {dist}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
             {/* Classified Advertisements Grid */}
             <ListingsSection
@@ -450,7 +506,62 @@ export default function App() {
               onOpenPostAd={handleOpenPostAd}
               hasActiveFilters={hasActiveFilters}
               onResetFilters={handleResetFilters}
+              currentCategory={selectedCategory}
+              onSelectCategory={setSelectedCategory}
             />
+
+            {/* HUTA IN Community & Events Hub Teaser Banner */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-8">
+              <div className="bg-[#111217] border border-[#2D2F39] rounded-3xl p-6 sm:p-8 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl relative overflow-hidden">
+                <div className="absolute -right-16 -top-16 w-56 h-56 bg-[#FF5A36]/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="space-y-2 text-center md:text-left z-10">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FF5A36]/15 text-[#FF5A36] text-xs font-bold border border-[#FF5A36]/30">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>HUTA IN • Community & Events Hub</span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black tracking-tight">
+                    Upcoming Expos, Cultural Festivals & Auto Shows in Sri Lanka
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-400 max-w-xl">
+                    Discover handpicked local events, motor exhibitions, food carnivals, and cultural celebrations across Sri Lanka.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentTab('huta_in')}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#FF5A36] hover:bg-[#E04826] text-white font-bold text-sm shadow-md transition-all shrink-0 cursor-pointer"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Explore HUTA IN</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Qatar Living style Post-An-Ad Banner */}
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
+              <div className="bg-white border border-gray-200 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="space-y-2 text-center md:text-left">
+                  <div className="inline-flex items-center gap-1.5 text-xs font-bold text-[#FF5A36] uppercase tracking-wider">
+                    <span>Direct Buyer-Seller Connection</span>
+                  </div>
+                  <h3 className="text-xl sm:text-2xl font-black text-gray-900">
+                    Have something to sell or rent in Sri Lanka?
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-500 max-w-lg">
+                    Post your ad for free in 60 seconds with AI assistance. Connect with verified buyers directly via WhatsApp and phone call.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleOpenPostAd}
+                  className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-[#FF5A36] hover:bg-[#E04826] text-white font-bold text-sm shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer"
+                >
+                  <PlusCircle className="w-5 h-5" />
+                  <span>Post Free Advertisement</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
