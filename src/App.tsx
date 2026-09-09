@@ -447,6 +447,9 @@ export default function App() {
               onToggleFavorite={handleToggleFavorite}
               onSelectListing={handleSelectListing}
               isLoading={isLoading}
+              onOpenPostAd={handleOpenPostAd}
+              hasActiveFilters={hasActiveFilters}
+              onResetFilters={handleResetFilters}
             />
           </div>
         )}
@@ -454,6 +457,14 @@ export default function App() {
         {currentTab === 'huta_in' && (
           <HutaInPage
             events={events}
+            isAdminLoggedIn={isAdminLoggedIn}
+            onNavigateToAdminEvents={() => {
+              if (isAdminLoggedIn) {
+                setCurrentTab('admin_dashboard');
+              } else {
+                setIsAdminLoginOpen(true);
+              }
+            }}
             onBackToHome={() => setCurrentTab('marketplace')}
             onOpenPostAd={handleOpenPostAd}
             onSelectCategory={(cat) => {
@@ -552,6 +563,16 @@ export default function App() {
                 );
               } catch (err: unknown) {
                 const msg = err instanceof Error ? err.message : 'Failed to toggle spotlight';
+                showToast(msg, 'error');
+              }
+            }}
+            onClearAllListings={async () => {
+              try {
+                await api.clearAllListings();
+                setListings([]);
+                showToast('All advertisements removed. Marketplace is completely fresh!', 'info');
+              } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : 'Failed to clear advertisements';
                 showToast(msg, 'error');
               }
             }}

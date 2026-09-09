@@ -28,10 +28,57 @@ import {
   Eye,
   Tag,
   Users,
-  AlertCircle
+  AlertCircle,
+  UploadCloud,
+  Image as ImageIcon
 } from 'lucide-react';
 import { formatLKR } from './ListingsSection';
 import { api } from '../services/api';
+
+const compressBannerImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 1400; // High resolution for widescreen banners
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
+const BANNER_PRESETS = [
+  { label: '🎪 Festival & Concert', url: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&fit=crop&q=80' },
+  { label: '🏢 Tech & Business Expo', url: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=80' },
+  { label: '🏏 Sports & Cricket', url: 'https://images.unsplash.com/photo-1531415074868-036b1c57e32b?w=800&auto=format&fit=crop&q=80' },
+  { label: '🍜 Food & Night Market', url: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80' },
+  { label: '🎨 Art & Cultural Gala', url: 'https://images.unsplash.com/photo-1561214115-f2f134cc4912?w=800&auto=format&fit=crop&q=80' },
+  { label: '🛍️ Shopping Mega Sale', url: 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=800&auto=format&fit=crop&q=80' },
+];
 
 interface AdminDashboardProps {
   listings: Listing[];
@@ -50,6 +97,7 @@ interface AdminDashboardProps {
   onCreateEvent?: (created: EventItem) => void;
   onDeleteEvent?: (id: string) => void;
   onToggleSpotlightEvent?: (id: string) => Promise<void>;
+  onClearAllListings?: () => Promise<void>;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -69,6 +117,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onCreateEvent,
   onDeleteEvent,
   onToggleSpotlightEvent,
+  onClearAllListings,
 }) => {
   const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'featured' | 'services' | 'spotlight'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -81,6 +130,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [changeError, setChangeError] = useState('');
   const [changeSuccess, setChangeSuccess] = useState('');
+
+  // Live Launch & Auto-Approve state
+  const [autoApprove, setAutoApprove] = useState(true);
+  const [isUpdatingAutoApprove, setIsUpdatingAutoApprove] = useState(false);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+  const [isClearingAll, setIsClearingAll] = useState(false);
+
+  useEffect(() => {
+    api.getAdminConfig().then((cfg) => {
+      setAutoApprove(Boolean(cfg.autoApprove));
+    }).catch(() => {});
+  }, []);
+
+  const handleToggleAutoApprove = async () => {
+    const next = !autoApprove;
+    setIsUpdatingAutoApprove(true);
+    try {
+      await api.updateAdminConfig({ autoApprove: next });
+      setAutoApprove(next);
+      if (onToast) {
+        onToast(
+          next
+            ? 'Auto-Approval enabled: Customer ads go live immediately!'
+            : 'Manual Review enabled: Customer ads require admin approval first.',
+          'success'
+        );
+      }
+    } catch {
+      if (onToast) onToast('Failed to update approval setting', 'error');
+    } finally {
+      setIsUpdatingAutoApprove(false);
+    }
+  };
 
   // Events & Spotlight state
   const [localEvents, setLocalEvents] = useState<EventItem[]>(events || []);
@@ -112,10 +194,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [evtDescription, setEvtDescription] = useState('');
   const [evtOrganizer, setEvtOrganizer] = useState('');
   const [evtIsSpotlight, setEvtIsSpotlight] = useState(true);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
 
-  // Sync events from prop or fetch if empty
+  const handleBannerFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      if (onToast) onToast('Image exceeds 15MB. Please choose a smaller photo.', 'error');
+      return;
+    }
+
+    setIsUploadingBanner(true);
+    try {
+      const compressed = await compressBannerImage(file);
+      setEvtImage(compressed);
+      if (onToast) onToast('Banner image uploaded & optimized successfully!', 'success');
+    } catch (err) {
+      console.error('Failed to process banner image', err);
+      if (onToast) onToast('Failed to process image file.', 'error');
+    } finally {
+      setIsUploadingBanner(false);
+      e.target.value = '';
+    }
+  };
+
+  // Sync events from prop or fetch if not provided
   useEffect(() => {
-    if (events && events.length > 0) {
+    if (events !== undefined) {
       setLocalEvents(events);
     } else {
       api.getEvents().then((data) => setLocalEvents(data)).catch(console.error);
@@ -330,17 +436,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const filteredEventsList = localEvents.filter((item) => {
+    if (selectedDistrict !== 'all' && item.district !== selectedDistrict) return false;
     if (eventSpotlightFilter === 'spotlight' && !item.isSpotlight) return false;
     if (eventSpotlightFilter === 'standard' && item.isSpotlight) return false;
     if (eventCategoryFilter !== 'All' && item.category !== eventCategoryFilter) return false;
 
-    if (eventSearchTerm.trim()) {
-      const q = eventSearchTerm.toLowerCase();
-      const matchTitle = item.title.toLowerCase().includes(q);
-      const matchVenue = item.venue.toLowerCase().includes(q);
-      const matchDist = item.district.toLowerCase().includes(q);
-      const matchOrg = item.organizer.toLowerCase().includes(q);
-      if (!matchTitle && !matchVenue && !matchDist && !matchOrg) return false;
+    const query = (searchTerm || eventSearchTerm).trim().toLowerCase();
+    if (query) {
+      const matchTitle = item.title.toLowerCase().includes(query);
+      const matchVenue = item.venue.toLowerCase().includes(query);
+      const matchDist = item.district.toLowerCase().includes(query);
+      const matchOrg = item.organizer.toLowerCase().includes(query);
+      const matchCat = item.category.toLowerCase().includes(query);
+      if (!matchTitle && !matchVenue && !matchDist && !matchOrg && !matchCat) return false;
     }
     return true;
   });
@@ -620,32 +728,142 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Image URL & Preview */}
+              {/* Banner Image: Upload File, Presets & URL */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-                  Banner Image URL
-                </label>
-                <input
-                  type="url"
-                  value={evtImage}
-                  onChange={(e) => setEvtImage(e.target.value)}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-[#FF5A36] outline-none font-mono text-xs"
-                />
-                {evtImage && (
-                  <div className="mt-2 h-24 w-full rounded-xl overflow-hidden border border-gray-200 relative bg-gray-100">
-                    <img
-                      src={evtImage}
-                      alt="Banner Preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src =
-                          'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=80';
-                      }}
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    <ImageIcon className="w-3.5 h-3.5 text-[#FF5A36]" />
+                    <span>Banner Image (Upload or URL)</span>
+                  </label>
+                  <span className="text-[11px] text-gray-500 font-medium">
+                    Upload from device or paste link
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mb-2">
+                  {/* Dedicated "Add Image" Button with File Input */}
+                  <label className="cursor-pointer flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 hover:border-[#FF5A36] rounded-xl py-2.5 px-4 text-xs font-bold text-gray-700 hover:text-[#FF5A36] transition-colors bg-gray-50 hover:bg-orange-50/50 shrink-0">
+                    {isUploadingBanner ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-[#FF5A36]" />
+                    ) : (
+                      <UploadCloud className="w-4 h-4 text-[#FF5A36]" />
+                    )}
+                    <span>{isUploadingBanner ? 'Uploading Photo...' : 'Add Image (Upload File)'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={isUploadingBanner}
+                      onChange={handleBannerFileUpload}
+                      className="hidden"
                     />
-                    <span className="absolute bottom-1 right-2 bg-black/70 text-white text-[10px] font-semibold px-2 py-0.5 rounded">
-                      Image Preview
-                    </span>
+                  </label>
+
+                  <div className="relative flex-1">
+                    <input
+                      type="url"
+                      value={evtImage}
+                      onChange={(e) => setEvtImage(e.target.value)}
+                      placeholder="Or paste banner image URL (https://...)"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-xs focus:border-[#FF5A36] outline-none font-mono"
+                    />
+                    {evtImage && (
+                      <button
+                        type="button"
+                        onClick={() => setEvtImage('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 text-xs font-bold p-1 cursor-pointer"
+                        title="Clear banner image"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quick 1-Click Banner Presets */}
+                <div className="mb-3">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                    Quick Preset Banners:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {BANNER_PRESETS.map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setEvtImage(preset.url);
+                          if (onToast) onToast(`Loaded ${preset.label} banner!`, 'info');
+                        }}
+                        className={`text-[11px] font-medium px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                          evtImage === preset.url
+                            ? 'bg-orange-500 text-white border-orange-500 shadow-xs'
+                            : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-200'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Banner Preview Card */}
+                {evtImage ? (
+                  <div className="rounded-2xl overflow-hidden border border-gray-200 relative bg-gray-900 shadow-inner group">
+                    <div className="h-36 sm:h-44 w-full relative">
+                      <img
+                        src={evtImage}
+                        alt="Banner Preview"
+                        className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src =
+                            'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=80';
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+
+                      {/* Live Badge Preview */}
+                      <div className="absolute top-2.5 left-2.5 bg-[#FF5A36] text-white text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-md shadow-xs">
+                        {evtBadge || 'Featured'}
+                      </div>
+
+                      {/* Live Details Preview */}
+                      <div className="absolute bottom-2.5 left-3 right-28 text-white">
+                        <p className="text-xs font-bold truncate">
+                          {evtTitle || 'Event / Spotlight Title'}
+                        </p>
+                        <p className="text-[10px] text-gray-300 truncate">
+                          {evtVenue || evtLocation || 'Venue'} • {evtDate || `${evtMonth} ${evtDay}`}
+                        </p>
+                      </div>
+
+                      {/* Action buttons on banner */}
+                      <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                        <label className="cursor-pointer bg-white/95 hover:bg-white text-gray-800 text-[10px] font-bold px-2 py-1 rounded-md shadow-xs transition-colors flex items-center gap-1">
+                          <UploadCloud className="w-3 h-3 text-[#FF5A36]" />
+                          <span>Change</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={isUploadingBanner}
+                            onChange={handleBannerFileUpload}
+                            className="hidden"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setEvtImage('')}
+                          className="bg-black/70 hover:bg-red-600 text-white p-1 rounded-md transition-colors cursor-pointer"
+                          title="Remove Banner"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-gray-50 rounded-2xl border border-dashed border-gray-300 text-center">
+                    <p className="text-xs text-gray-500 font-medium">
+                      No banner image selected yet. Click <strong>"Add Image (Upload File)"</strong> to pick a photo from your computer or phone, or choose one of the quick presets above.
+                    </p>
                   </div>
                 )}
               </div>
@@ -725,6 +943,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Auto-Approve Toggle */}
+          <button
+            type="button"
+            onClick={handleToggleAutoApprove}
+            disabled={isUpdatingAutoApprove}
+            title="Toggle whether customer advertisements go live immediately without admin moderation"
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors border cursor-pointer ${
+              autoApprove
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+                : 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${autoApprove ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+            <span>{autoApprove ? 'Auto-Approve Ads: ON' : 'Manual Review: ON'}</span>
+          </button>
+
+          {/* Fresh Launch Clear Ads */}
+          {onClearAllListings && (
+            <button
+              type="button"
+              onClick={() => setIsClearConfirmOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-red-500/15 hover:bg-red-500/25 text-red-300 rounded-xl text-xs sm:text-sm font-semibold transition-colors border border-red-500/30 cursor-pointer"
+              title="Remove all listings for a clean live launch"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Clean Ads (Live Launch)</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => {
@@ -1062,7 +1309,146 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* Table Content */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          {filterTab === 'spotlight' ? (
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                <tr>
+                  <th className="py-3.5 px-4 font-bold">Event Details & Banner</th>
+                  <th className="py-3.5 px-4 font-bold">Category & District</th>
+                  <th className="py-3.5 px-4 font-bold">Date & Venue</th>
+                  <th className="py-3.5 px-4 font-bold">Price</th>
+                  <th className="py-3.5 px-4 font-bold">Spotlight Banner</th>
+                  <th className="py-3.5 px-4 font-bold text-right">Admin Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredEventsList.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-14 text-center">
+                      <div className="max-w-sm mx-auto flex flex-col items-center justify-center space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-orange-100/80 text-[#FF5A36] flex items-center justify-center">
+                          <Sparkles className="w-6 h-6" />
+                        </div>
+                        <h4 className="font-extrabold text-gray-900 text-sm">
+                          {localEvents.length === 0
+                            ? 'No Events or Spotlight Banners Created'
+                            : 'No events match your current search'}
+                        </h4>
+                        <p className="text-xs text-gray-500">
+                          {localEvents.length === 0
+                            ? 'The events list is currently empty. As Admin, click below to publish your first festival, expo, or spotlight banner.'
+                            : 'Try clearing the search query or selecting All Districts.'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={openAddEvent}
+                          className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-[#FF5A36] hover:bg-[#E04826] text-white rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Add New Event / Spotlight</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredEventsList.map((evt) => (
+                    <tr key={evt.id} className="hover:bg-gray-50/80 transition-colors">
+                      {/* Item */}
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={evt.image || 'https://via.placeholder.com/60'}
+                            alt={evt.title}
+                            className="w-16 h-11 rounded-xl object-cover border border-gray-200 shrink-0 bg-gray-100 shadow-xs"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src =
+                                'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=80';
+                            }}
+                          />
+                          <div className="min-w-0 max-w-xs">
+                            <p className="font-bold text-gray-900 line-clamp-1 text-xs sm:text-sm">
+                              {evt.title}
+                            </p>
+                            <p className="text-[11px] text-gray-500 truncate">
+                              Org: {evt.organizer || 'HUTA Community'}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Category & District */}
+                      <td className="py-3 px-4">
+                        <span className="inline-block text-xs font-semibold text-gray-800 bg-gray-100 px-2 py-0.5 rounded-md">
+                          {evt.category}
+                        </span>
+                        <p className="text-[11px] text-gray-500 mt-0.5">{evt.district}</p>
+                      </td>
+
+                      {/* Date & Venue */}
+                      <td className="py-3 px-4">
+                        <p className="text-xs font-bold text-gray-900">{evt.date || `${evt.month} ${evt.day}`}</p>
+                        <p className="text-[11px] text-gray-500 truncate max-w-[180px]">{evt.venue}</p>
+                      </td>
+
+                      {/* Price */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <span
+                          className={`inline-block text-xs font-bold px-2 py-0.5 rounded-md ${
+                            evt.isFree
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-blue-100 text-blue-700'
+                          }`}
+                        >
+                          {evt.price}
+                        </span>
+                      </td>
+
+                      {/* Spotlight Banner Status */}
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleSpotlightAction(evt)}
+                          title={evt.isSpotlight ? 'Click to remove from Spotlight banner' : 'Click to feature in Spotlight banner'}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-extrabold transition-all cursor-pointer ${
+                            evt.isSpotlight
+                              ? 'bg-[#FF5A36] text-white shadow-xs hover:bg-[#E04826]'
+                              : 'bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200'
+                          }`}
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          <span>{evt.isSpotlight ? 'In Spotlight' : 'Standard'}</span>
+                        </button>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openEditEvent(evt)}
+                            title="Edit Event & Banner details"
+                            className="inline-flex items-center gap-1 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold py-1.5 px-2.5 rounded-lg transition-colors border border-amber-200 cursor-pointer"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteEventAction(evt.id, evt.title)}
+                            title="Delete Event permanently"
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full text-left text-sm">
             <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider border-b border-gray-100">
               <tr>
                 <th className="py-3.5 px-4 font-bold">Item Details</th>
@@ -1215,6 +1601,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               )}
             </tbody>
           </table>
+          )}
         </div>
       </div>
 
@@ -1342,6 +1729,57 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Fresh Launch Clear All Ads Confirmation Modal */}
+      {isClearConfirmOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-gray-100 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-500 mx-auto flex items-center justify-center mb-4">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900">
+              Fresh Live Launch Reset
+            </h3>
+            <p className="text-sm text-gray-600 mt-2 leading-relaxed">
+              Are you sure you want to remove all advertisements? This will completely clear all demo/test ads so your website starts 100% fresh for incoming customers.
+            </p>
+            <div className="mt-6 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsClearConfirmOpen(false)}
+                disabled={isClearingAll}
+                className="w-1/2 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isClearingAll}
+                onClick={async () => {
+                  if (!onClearAllListings) return;
+                  setIsClearingAll(true);
+                  try {
+                    await onClearAllListings();
+                    setIsClearConfirmOpen(false);
+                  } finally {
+                    setIsClearingAll(false);
+                  }
+                }}
+                className="w-1/2 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-md cursor-pointer"
+              >
+                {isClearingAll ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Clearing...</span>
+                  </>
+                ) : (
+                  <span>Yes, Clear All Ads</span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

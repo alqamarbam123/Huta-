@@ -11,6 +11,7 @@ interface Listing {
   price: number;
   phone: string;
   image: string;
+  images?: string[];
   description: string;
   status: 'approved' | 'pending' | 'rejected';
   isFeatured: boolean;
@@ -63,24 +64,51 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
 const ADMIN_CONFIG_FILE = path.join(DATA_DIR, 'admin.json');
 
-function getAdminPassword(): string {
+interface AdminConfig {
+  password?: string;
+  autoApprove?: boolean;
+  updatedAt?: string;
+}
+
+function getAdminConfig(): { password: string; autoApprove: boolean } {
+  const result = {
+    password: process.env.ADMIN_PASSWORD || 'admin123',
+    autoApprove: true, // Default: auto-approve customer ads so they appear live immediately
+  };
   if (fs.existsSync(ADMIN_CONFIG_FILE)) {
     try {
       const data = JSON.parse(fs.readFileSync(ADMIN_CONFIG_FILE, 'utf-8'));
-      if (data.password) return String(data.password);
+      if (data.password) result.password = String(data.password);
+      if (data.autoApprove !== undefined) result.autoApprove = Boolean(data.autoApprove);
     } catch {
       // ignore
     }
   }
-  return process.env.ADMIN_PASSWORD || 'admin123';
+  return result;
+}
+
+function getAdminPassword(): string {
+  return getAdminConfig().password;
 }
 
 function setAdminPassword(newPassword: string): void {
+  const cfg = getAdminConfig();
   fs.writeFileSync(
     ADMIN_CONFIG_FILE,
-    JSON.stringify({ password: newPassword, updatedAt: new Date().toISOString() }, null, 2),
+    JSON.stringify({ ...cfg, password: newPassword, updatedAt: new Date().toISOString() }, null, 2),
     'utf-8'
   );
+}
+
+function updateAdminConfig(updates: Partial<AdminConfig>): { password: string; autoApprove: boolean } {
+  const cfg = getAdminConfig();
+  const merged = {
+    ...cfg,
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+  fs.writeFileSync(ADMIN_CONFIG_FILE, JSON.stringify(merged, null, 2), 'utf-8');
+  return merged;
 }
 
 // Ensure data directory exists
@@ -88,106 +116,18 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Initial Seed Data
-const DEFAULT_LISTINGS: Listing[] = [
-  {
-    id: '101',
-    title: 'Toyota Vitz KSP130 Safety Edition 2018',
-    category: 'Vehicles',
-    location: 'Colombo',
-    price: 7850000,
-    phone: '0771234567',
-    image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80',
-    description: 'First owner, low mileage (42,000 km), original paint, fully serviced at Toyota Lanka. Eco-mode, push start, reverse camera with guide lines. Price negotiable after inspection in Colombo 07.',
-    status: 'approved',
-    isFeatured: true,
-    date: '2026-09-01',
-    userId: 'system',
-    views: 142
-  },
-  {
-    id: '102',
-    title: 'Apple iPhone 15 Pro 128GB Natural Titanium',
-    category: 'Electronics',
-    location: 'Gampaha',
-    price: 315000,
-    phone: '0719876543',
-    image: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&w=800&q=80',
-    description: 'Brand new condition (Battery Health 99%), full set with original box and braided Type-C cable. Apple Care warranty remaining for 5 months. No scratches or dents. Glass screen protector applied from day 1.',
-    status: 'approved',
-    isFeatured: false,
-    date: '2026-09-03',
-    userId: 'system',
-    views: 89
-  },
-  {
-    id: '103',
-    title: '2-Story Modern Luxury House in Kandy Town',
-    category: 'Property',
-    location: 'Kandy',
-    price: 45000000,
-    phone: '0755554433',
-    image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80',
-    description: '15 Perches prime residential land with 4 large bedrooms, 3 attached modern bathrooms with solar hot water, rooftop terrace with scenic Hanthana mountain view. Just 5 minutes drive to Kandy lake & city center.',
-    status: 'approved',
-    isFeatured: true,
-    date: '2026-09-05',
-    userId: 'system',
-    views: 230
-  },
-  {
-    id: '104',
-    title: 'Sony PlayStation 5 Console + 2 DualSense Controllers',
-    category: 'Electronics',
-    location: 'Galle',
-    price: 185000,
-    phone: '0781122334',
-    image: 'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?auto=format&fit=crop&w=800&q=80',
-    description: 'Disc Edition PS5 with 2 original wireless controllers, HDMI 2.1 cable, power cord, and God of War Ragnarok physical game disc included. Used very lightly on weekends.',
-    status: 'approved',
-    isFeatured: false,
-    date: '2026-09-06',
-    userId: 'system',
-    views: 12
-  },
-  {
-    id: '105',
-    title: 'Yamaha FZ-S Version 3.0 ABS (Dark Knight)',
-    category: 'Motorcycles',
-    location: 'Kurunegala',
-    price: 980000,
-    phone: '0702233445',
-    image: 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80',
-    description: '2022 Registered BIH-XXXX, Single-channel ABS, pristine condition, single owner used for daily office commute. 18,500 km done. New rear tubeless tyre recently installed.',
-    status: 'pending',
-    isFeatured: false,
-    date: '2026-09-04',
-    userId: 'system',
-    views: 67
-  },
-  {
-    id: '106',
-    title: 'Luxury 3-Bedroom Furnished Apartment for Rent',
-    category: 'Property',
-    location: 'Colombo',
-    price: 260000,
-    phone: '0763344556',
-    image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
-    description: 'Spacious sea-view 1,450 sqft apartment in Kollupitiya. Fully air-conditioned, gym, infinity swimming pool, backup generator, and 2 designated parking slots. Monthly rent LKR 260,000.',
-    status: 'pending',
-    isFeatured: true,
-    date: '2026-09-02',
-    userId: 'system',
-    views: 195
-  }
-];
+// Initial Seed Data - Empty for fresh live launch (customers will add real ads)
+const DEFAULT_LISTINGS: Listing[] = [];
 
 // Helper to read/write listings
 function getStoredListings(): Listing[] {
   try {
     if (fs.existsSync(LISTINGS_FILE)) {
       const data = fs.readFileSync(LISTINGS_FILE, 'utf-8');
-      return JSON.parse(data);
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
     }
   } catch (err) {
     console.error('Error reading listings file, fallback to defaults', err);
@@ -225,180 +165,19 @@ function saveStoredUsers(users: User[]) {
   }
 }
 
-const DEFAULT_EVENTS: EventItem[] = [
-  {
-    id: 'cardcon_lanka',
-    title: 'CARDCON & Collectibles Expo 2026',
-    category: 'Entertainment',
-    district: 'Colombo',
-    date: 'OCT 18 - 20, 2026',
-    month: 'OCT',
-    day: '18',
-    time: '10:00 AM - 08:00 PM',
-    location: 'Colombo 07',
-    venue: 'BMICH Exhibition Centre, Hall A',
-    image: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80',
-    badge: 'Popular',
-    price: 'Free Entry',
-    isFree: true,
-    attendees: 4200,
-    description: 'Sri Lanka’s premier trading card, gaming, pop culture, and collectible convention. Trade rare Pokémon, sports cards, comics, and participate in competitive tabletop showdowns.',
-    organizer: 'Lanka Collectors Guild',
-    isSpotlight: true,
-  },
-  {
-    id: 'colombo_motor_show',
-    title: 'Ceylon International Motor Show',
-    category: 'Exhibitions',
-    district: 'Colombo',
-    date: 'NOV 05 - 08, 2026',
-    month: 'NOV',
-    day: '05',
-    time: '09:00 AM - 09:00 PM',
-    location: 'Colombo 01',
-    venue: 'Colombo Port City Marina Boulevard',
-    image: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&auto=format&fit=crop&q=80',
-    badge: 'Featured',
-    price: 'LKR 1,500',
-    isFree: false,
-    attendees: 12500,
-    description: 'The premier automotive showcase featuring electric mobility, supercars, vintage classics, 4x4 overland rigs, and live drift exhibitions.',
-    organizer: 'Ceylon Motor Sports Club',
-    isSpotlight: true,
-  },
-  {
-    id: 'galle_food_fest',
-    title: 'Southern Spice & Seafood Festival',
-    category: 'Food & Culture',
-    district: 'Galle',
-    date: 'DEC 12 - 14, 2026',
-    month: 'DEC',
-    day: '12',
-    time: '04:00 PM - 11:30 PM',
-    location: 'Galle Fort',
-    venue: 'Galle Fort Ramparts Lawn',
-    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80',
-    badge: 'Culinary',
-    price: 'Free Entry',
-    isFree: true,
-    attendees: 8900,
-    description: 'Authentic southern Sri Lankan seafood curries, artisanal bakeries, live acoustic island bands, and sunset ocean dining.',
-    organizer: 'Galle Heritage Tourism',
-    isSpotlight: true,
-  },
-  {
-    id: 'lanka_comic_con',
-    title: 'Lanka Comic Con & Gaming Arena',
-    category: 'Entertainment',
-    district: 'Colombo',
-    date: 'JAN 22 - 24, 2027',
-    month: 'JAN',
-    day: '22',
-    time: '11:00 AM - 09:00 PM',
-    location: 'Battaramulla',
-    venue: 'SLECC Exhibition Hall',
-    image: 'https://images.unsplash.com/photo-1563089145-599997674d42?w=800&auto=format&fit=crop&q=80',
-    badge: 'Gaming',
-    price: 'LKR 800',
-    isFree: false,
-    attendees: 6400,
-    description: 'Cosplay championships, international indie game stalls, VR gaming suites, artist alleys, and tabletop tournaments.',
-    organizer: 'Geek Club of Sri Lanka',
-    isSpotlight: true,
-  },
-  {
-    id: 'kandy_heritage_fest',
-    title: 'Kandy Hill Country Crafts & Culture',
-    category: 'Food & Culture',
-    district: 'Kandy',
-    date: 'FEB 04 - 07, 2027',
-    month: 'FEB',
-    day: '04',
-    time: '10:00 AM - 08:30 PM',
-    location: 'Kandy',
-    venue: 'Kandy Lake Round Promenade',
-    image: 'https://images.unsplash.com/photo-1609137144822-4752c0f4553a?w=800&auto=format&fit=crop&q=80',
-    badge: 'Cultural',
-    price: 'Free Entry',
-    isFree: true,
-    attendees: 5100,
-    description: 'Traditional Kandyan brassware, handloom weaving masterclasses, Ceylon spice exhibits, and authentic hill-country culinary treats.',
-    organizer: 'Central Province Cultural Dept',
-    isSpotlight: false,
-  },
-  {
-    id: 'tech_summit_colombo',
-    title: 'AI & Digital Sri Lanka Summit',
-    category: 'Tech',
-    district: 'Colombo',
-    date: 'FEB 20 - 21, 2027',
-    month: 'FEB',
-    day: '20',
-    time: '08:30 AM - 05:30 PM',
-    location: 'Colombo 03',
-    venue: 'Cinnamon Grand Colombo, Oak Room',
-    image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=80',
-    badge: 'Tech Summit',
-    price: 'Registration Req.',
-    isFree: false,
-    attendees: 3100,
-    description: 'Keynotes from top global AI pioneers, venture capital speed-dating, startup pitch battle with USD 25k in grants, and engineering workshops.',
-    organizer: 'SLASSCOM & Tech Lanka',
-    isSpotlight: false,
-  },
-  {
-    id: 'jaffna_music_fiesta',
-    title: 'Northern Beats & Food Carnival',
-    category: 'Food & Culture',
-    district: 'Jaffna',
-    date: 'MAR 14 - 15, 2027',
-    month: 'MAR',
-    day: '14',
-    time: '05:00 PM - 11:00 PM',
-    location: 'Jaffna',
-    venue: 'Jaffna Cultural Centre Open Arena',
-    image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&auto=format&fit=crop&q=80',
-    badge: 'Live Music',
-    price: 'Free Entry',
-    isFree: true,
-    attendees: 7300,
-    description: 'Celebration of northern Sri Lankan flavours (authentic Jaffna crab curry, Odiyal Kool), Carnatic fusion bands, and fire performances.',
-    organizer: 'Northern Tourism Bureau',
-    isSpotlight: false,
-  },
-  {
-    id: 'negombo_beach_fest',
-    title: 'Negombo Coastline Beach Fest & Regatta',
-    category: 'Sports',
-    district: 'Negombo',
-    date: 'APR 03 - 05, 2027',
-    month: 'APR',
-    day: '03',
-    time: '08:00 AM - 10:00 PM',
-    location: 'Negombo',
-    venue: 'Negombo Beach Park Golden Sands',
-    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80',
-    badge: 'Beach & Sports',
-    price: 'Free Entry',
-    isFree: true,
-    attendees: 9800,
-    description: 'Catamaran regatta races, beach volleyball tournament, live acoustic sets by the shore, and sundown cocktail lounges.',
-    organizer: 'Negombo Municipal Council',
-    isSpotlight: false,
-  }
-];
+const DEFAULT_EVENTS: EventItem[] = [];
 
 function getStoredEvents(): EventItem[] {
   try {
     if (fs.existsSync(EVENTS_FILE)) {
       const data = fs.readFileSync(EVENTS_FILE, 'utf-8');
       const parsed = JSON.parse(data);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed;
       }
     }
   } catch (err) {
-    console.error('Error reading events file, fallback to defaults', err);
+    console.error('Error reading events file', err);
   }
   saveStoredEvents(DEFAULT_EVENTS);
   return DEFAULT_EVENTS;
@@ -521,6 +300,7 @@ async function startServer() {
       price,
       phone,
       image,
+      images,
       description,
       userId,
       serviceTrade,
@@ -534,6 +314,15 @@ async function startServer() {
       return res.status(400).json({ error: 'Missing required listing fields' });
     }
 
+    // Process multiple images
+    const rawImages = Array.isArray(images) ? images.map(String).filter(Boolean) : [];
+    if (image && !rawImages.includes(String(image))) {
+      rawImages.unshift(String(image));
+    }
+    const finalImage = rawImages[0] || image || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80';
+    const finalImages = rawImages.length > 0 ? rawImages : [finalImage];
+
+    const adminCfg = getAdminConfig();
     const newListing: Listing = {
       id: Date.now().toString(),
       title: String(title).trim(),
@@ -541,9 +330,10 @@ async function startServer() {
       location: String(location).trim(),
       price: Number(price),
       phone: String(phone).trim(),
-      image: image || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80',
+      image: finalImage,
+      images: finalImages,
       description: String(description).trim(),
-      status: 'pending', // Pending admin review
+      status: adminCfg.autoApprove ? 'approved' : 'pending', // Auto-approved if setting enabled, else pending review
       isFeatured: false,
       date: new Date().toISOString().split('T')[0],
       userId: userId ? String(userId) : 'system',
@@ -575,6 +365,7 @@ async function startServer() {
       price,
       phone,
       image,
+      images,
       description,
       isFeatured,
       status,
@@ -585,6 +376,16 @@ async function startServer() {
       isEmergency247,
     } = req.body;
 
+    let updatedImages = current.images;
+    if (images !== undefined) {
+      updatedImages = Array.isArray(images) ? images.map(String).filter(Boolean) : [];
+    }
+
+    let updatedImage = image !== undefined ? String(image) : current.image;
+    if (updatedImages && updatedImages.length > 0 && (!updatedImage || !updatedImages.includes(updatedImage))) {
+      updatedImage = updatedImages[0];
+    }
+
     listingsCache[index] = {
       ...current,
       title: title !== undefined ? String(title).trim() : current.title,
@@ -592,7 +393,8 @@ async function startServer() {
       location: location !== undefined ? String(location).trim() : current.location,
       price: price !== undefined ? Number(price) : current.price,
       phone: phone !== undefined ? String(phone).trim() : current.phone,
-      image: image !== undefined ? String(image) : current.image,
+      image: updatedImage,
+      images: updatedImages && updatedImages.length > 0 ? updatedImages : [updatedImage],
       description: description !== undefined ? String(description).trim() : current.description,
       isFeatured: isFeatured !== undefined ? Boolean(isFeatured) : current.isFeatured,
       status: status !== undefined ? status : current.status,
@@ -855,6 +657,28 @@ async function startServer() {
 
     setAdminPassword(String(newPassword));
     return res.json({ success: true, message: 'Admin password updated successfully!' });
+  });
+
+  // Admin get settings
+  app.get('/api/admin/config', (req, res) => {
+    const cfg = getAdminConfig();
+    res.json({ autoApprove: cfg.autoApprove });
+  });
+
+  // Admin update settings
+  app.put('/api/admin/config', (req, res) => {
+    const { autoApprove } = req.body;
+    const updated = updateAdminConfig({
+      autoApprove: autoApprove !== undefined ? Boolean(autoApprove) : undefined,
+    });
+    res.json({ success: true, autoApprove: updated.autoApprove });
+  });
+
+  // Admin clear all listings (fresh live launch reset)
+  app.post('/api/admin/clear-all-listings', (req, res) => {
+    listingsCache = [];
+    saveStoredListings(listingsCache);
+    res.json({ success: true, message: 'All listings removed for fresh launch', count: 0 });
   });
 
   // User register

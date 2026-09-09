@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Listing, User } from '../types';
 import {
@@ -15,7 +15,11 @@ import {
   Share2,
   ShieldCheck,
   Wrench,
-  Sparkles
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  Maximize2,
+  Camera
 } from 'lucide-react';
 import { formatLKR } from './ListingsSection';
 
@@ -48,6 +52,20 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
 
   const isOwner = currentUser && listing.userId === currentUser.id;
   const canManage = isOwner || isAdminLoggedIn;
+
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [isZoomOpen, setIsZoomOpen] = useState(false);
+
+  useEffect(() => {
+    setActiveIdx(0);
+    setIsZoomOpen(false);
+  }, [listing?.id]);
+
+  const gallery = (listing.images && listing.images.length > 0)
+    ? listing.images
+    : (listing.image ? [listing.image] : ['https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80']);
+
+  const currentPhoto = gallery[activeIdx] || gallery[0];
 
   // Format Sri Lankan WhatsApp link
   // e.g. 0771234567 -> 94771234567
@@ -95,20 +113,94 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
         </button>
 
         <div className="grid grid-cols-1 md:grid-cols-2">
-          {/* Image Pane */}
-          <div className="bg-gray-100 h-64 md:h-auto min-h-[280px] relative">
-            <img
-              src={listing.image || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80'}
-              alt={listing.title}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src =
-                  'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80';
-              }}
-            />
-            <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-xs text-white text-xs px-2.5 py-1 rounded-lg">
-              {listing.category} in {listing.location}
+          {/* Image Pane & Gallery Carousel */}
+          <div className="bg-gray-900 flex flex-col justify-between relative overflow-hidden select-none">
+            {/* Main Active Photo */}
+            <div className="relative h-64 md:h-80 sm:h-72 w-full bg-black/40 flex items-center justify-center overflow-hidden">
+              <img
+                src={currentPhoto}
+                alt={`${listing.title} - Photo ${activeIdx + 1}`}
+                className="w-full h-full object-cover transition-all duration-300 cursor-pointer"
+                onClick={() => setIsZoomOpen(true)}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src =
+                    'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=800&q=80';
+                }}
+              />
+
+              {/* Category & Location Tag */}
+              <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-xs text-white text-[11px] px-2.5 py-1 rounded-lg">
+                {listing.category} in {listing.location}
+              </div>
+
+              {/* Photo Counter Badge */}
+              <div className="absolute top-3 right-14 bg-black/60 backdrop-blur-xs text-white text-[11px] font-semibold px-2 py-1 rounded-lg flex items-center gap-1.5">
+                <Camera className="w-3.5 h-3.5" />
+                <span>{activeIdx + 1} / {gallery.length}</span>
+              </div>
+
+              {/* Zoom Button */}
+              <button
+                type="button"
+                onClick={() => setIsZoomOpen(true)}
+                className="absolute bottom-3 right-3 w-8 h-8 rounded-lg bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-all hover:scale-105"
+                title="View Fullscreen"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
+
+              {/* Navigation Arrows for Multi-Photos */}
+              {gallery.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveIdx((prev) => (prev - 1 + gallery.length) % gallery.length);
+                    }}
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition-transform hover:scale-110 cursor-pointer"
+                    title="Previous photo"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveIdx((prev) => (prev + 1) % gallery.length);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition-transform hover:scale-110 cursor-pointer"
+                    title="Next photo"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </>
+              )}
             </div>
+
+            {/* Thumbnail Strip (if multiple images) */}
+            {gallery.length > 1 && (
+              <div className="p-2.5 bg-gray-950 flex items-center gap-2 overflow-x-auto border-t border-white/10 scrollbar-thin">
+                {gallery.map((img, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setActiveIdx(idx)}
+                    className={`relative shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
+                      idx === activeIdx
+                        ? 'border-[#FF5A36] scale-105 opacity-100'
+                        : 'border-transparent opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <img
+                      src={img}
+                      alt={`Thumbnail ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Details Pane */}
@@ -312,6 +404,97 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
           </div>
         </div>
       </motion.div>
+
+      {/* Fullscreen Lightbox Zoom Modal */}
+      <AnimatePresence>
+        {isZoomOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-60 bg-black/95 flex flex-col items-center justify-between p-4 sm:p-6"
+            onClick={() => setIsZoomOpen(false)}
+          >
+            {/* Top Bar */}
+            <div className="w-full flex items-center justify-between text-white z-10">
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                <Camera className="w-4 h-4 text-[#FF5A36]" />
+                <span>
+                  Photo {activeIdx + 1} of {gallery.length} • {listing.title}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsZoomOpen(false)}
+                className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+                title="Close Zoom"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Centered Large Image */}
+            <div
+              className="relative flex-1 w-full max-w-5xl flex items-center justify-center my-4 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={currentPhoto}
+                alt={`${listing.title} - Zoomed`}
+                className="max-h-[75vh] max-w-full object-contain rounded-2xl shadow-2xl"
+              />
+
+              {gallery.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setActiveIdx((prev) => (prev - 1 + gallery.length) % gallery.length)}
+                    className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/70 hover:bg-[#FF5A36] text-white flex items-center justify-center transition-all cursor-pointer shadow-lg"
+                    title="Previous photo"
+                  >
+                    <ChevronLeft className="w-7 h-7" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveIdx((prev) => (prev + 1) % gallery.length)}
+                    className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/70 hover:bg-[#FF5A36] text-white flex items-center justify-center transition-all cursor-pointer shadow-lg"
+                    title="Next photo"
+                  >
+                    <ChevronRight className="w-7 h-7" />
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Bottom Thumbnails Strip */}
+            {gallery.length > 1 && (
+              <div
+                className="flex items-center gap-2 max-w-xl overflow-x-auto p-2 bg-white/10 rounded-2xl backdrop-blur-md z-10"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {gallery.map((img, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setActiveIdx(idx)}
+                    className={`relative shrink-0 w-14 h-14 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${
+                      idx === activeIdx
+                        ? 'border-[#FF5A36] scale-105'
+                        : 'border-transparent opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <img
+                      src={img}
+                      alt={`Zoom thumbnail ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

@@ -6,6 +6,7 @@ export interface Listing {
   price: number;
   phone: string;
   image: string;
+  images?: string[];
   description: string;
   status: 'approved' | 'pending' | 'rejected';
   isFeatured: boolean;

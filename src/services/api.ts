@@ -166,6 +166,38 @@ export const api = {
     return res.json();
   },
 
+  async getAdminConfig(): Promise<{ autoApprove: boolean }> {
+    const res = await fetch(`${API_BASE}/admin/config`);
+    if (!res.ok) {
+      return { autoApprove: true };
+    }
+    return res.json();
+  },
+
+  async updateAdminConfig(config: { autoApprove: boolean }): Promise<{ success: boolean; autoApprove: boolean }> {
+    const res = await fetch(`${API_BASE}/admin/config`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to update admin configuration');
+    }
+    return res.json();
+  },
+
+  async clearAllListings(): Promise<{ success: boolean; message: string; count: number }> {
+    const res = await fetch(`${API_BASE}/admin/clear-all-listings`, {
+      method: 'POST',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to clear listings');
+    }
+    return res.json();
+  },
+
   async userRegister(data: {
     username: string;
     fullname?: string;

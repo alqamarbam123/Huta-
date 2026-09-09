@@ -1,8 +1,61 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Listing, User } from '../types';
-import { X, Sparkles, Image as ImageIcon, Loader2, UploadCloud, Wrench, ShieldCheck } from 'lucide-react';
+import {
+  X,
+  Sparkles,
+  Image as ImageIcon,
+  Loader2,
+  UploadCloud,
+  Wrench,
+  ShieldCheck,
+  Plus,
+  Trash2,
+  Star,
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  Images
+} from 'lucide-react';
 import { api } from '../services/api';
+
+const MAX_IMAGES = 8;
+
+const compressImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 1200;
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+};
 
 interface PostAdModalProps {
   isOpen: boolean;
@@ -98,8 +151,11 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
   const [price, setPrice] = useState('');
   const [phone, setPhone] = useState('');
   const [description, setDescription] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
-  const [imagePreview, setImagePreview] = useState('');
+
+  // Multiple Images State
+  const [images, setImages] = useState<string[]>([]);
+  const [urlInput, setUrlInput] = useState('');
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
 
   // Specialized Service Fields
   const [serviceTrade, setServiceTrade] = useState('AC Repair & Servicing');
@@ -123,8 +179,17 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
       setPrice(editingListing.price.toString());
       setPhone(editingListing.phone);
       setDescription(editingListing.description);
-      setImageUrl(editingListing.image || '');
-      setImagePreview(editingListing.image || '');
+
+      // Load multiple images
+      const initialImgs: string[] = [];
+      if (Array.isArray(editingListing.images) && editingListing.images.length > 0) {
+        initialImgs.push(...editingListing.images.filter(Boolean));
+      } else if (editingListing.image) {
+        initialImgs.push(editingListing.image);
+      }
+      setImages(initialImgs);
+      setUrlInput('');
+
       setServiceTrade(editingListing.serviceTrade || 'AC Repair & Servicing');
       setPricingType(editingListing.pricingType || (editingListing.category === 'Services' ? 'starting_at' : 'fixed'));
       setServiceArea(editingListing.serviceArea || 'Colombo & Greater Suburbs');
@@ -140,8 +205,8 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
       setPrice('');
       setPhone('');
       setDescription('');
-      setImageUrl('');
-      setImagePreview('');
+      setImages([]);
+      setUrlInput('');
       setServiceTrade('AC Repair & Servicing');
       setPricingType('starting_at');
       setServiceArea('Colombo & Greater Suburbs');
@@ -154,22 +219,87 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleMultipleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      onToast('Image size exceeds 5MB. Please choose a smaller image.', 'error');
+    const remainingSlots = MAX_IMAGES - images.length;
+    if (remainingSlots <= 0) {
+      onToast(`Maximum of ${MAX_IMAGES} photos reached. Remove some photos to add new ones.`, 'error');
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      setImagePreview(result);
-      setImageUrl(result);
-    };
-    reader.readAsDataURL(file);
+    const filesToProcess = (Array.from(files) as File[]).slice(0, remainingSlots);
+    setIsUploadingImages(true);
+
+    try {
+      const newImages: string[] = [];
+      for (const file of filesToProcess) {
+        if (file.size > 15 * 1024 * 1024) {
+          onToast(`File "${file.name}" exceeds 15MB. Please choose a smaller photo.`, 'error');
+          continue;
+        }
+        const compressed = await compressImage(file);
+        newImages.push(compressed);
+      }
+
+      if (newImages.length > 0) {
+        setImages((prev) => [...prev, ...newImages]);
+        onToast(`Added ${newImages.length} photo${newImages.length > 1 ? 's' : ''}!`, 'success');
+      }
+    } catch (err) {
+      console.error('Error processing photos', err);
+      onToast('Could not process some photos. Please try again.', 'error');
+    } finally {
+      setIsUploadingImages(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleAddUrl = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = urlInput.trim();
+    if (!trimmed) return;
+
+    if (images.length >= MAX_IMAGES) {
+      onToast(`Maximum of ${MAX_IMAGES} photos reached.`, 'error');
+      return;
+    }
+
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://') && !trimmed.startsWith('data:')) {
+      onToast('Please enter a valid image URL starting with http:// or https://', 'error');
+      return;
+    }
+
+    setImages((prev) => [...prev, trimmed]);
+    setUrlInput('');
+    onToast('Image added to listing photos!', 'success');
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSetCover = (index: number) => {
+    if (index === 0) return;
+    setImages((prev) => {
+      const target = prev[index];
+      const rest = prev.filter((_, i) => i !== index);
+      return [target, ...rest];
+    });
+    onToast('Set as main cover photo!', 'success');
+  };
+
+  const handleMoveImage = (fromIndex: number, direction: 'left' | 'right') => {
+    const toIndex = direction === 'left' ? fromIndex - 1 : fromIndex + 1;
+    if (toIndex < 0 || toIndex >= images.length) return;
+    setImages((prev) => {
+      const copy = [...prev];
+      const temp = copy[fromIndex];
+      copy[fromIndex] = copy[toIndex];
+      copy[toIndex] = temp;
+      return copy;
+    });
   };
 
   const handleGenerateAIDescription = async () => {
@@ -214,6 +344,12 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
 
     setIsSubmitting(true);
     try {
+      const fallbackImage = category === 'Services'
+        ? 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80'
+        : 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80';
+      const primaryImage = images.length > 0 ? images[0] : fallbackImage;
+      const finalImages = images.length > 0 ? images : [primaryImage];
+
       const payload: Partial<Listing> = {
         title: title.trim(),
         category,
@@ -221,7 +357,8 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
         price: isService && pricingType === 'quote' ? 0 : parseFloat(price || '0'),
         phone: phone.trim(),
         description: description.trim(),
-        image: imagePreview || imageUrl.trim() || 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=600&q=80',
+        image: primaryImage,
+        images: finalImages,
         userId: editingListing ? editingListing.userId : (currentUser ? currentUser.id : 'system'),
         serviceTrade: isService ? serviceTrade : undefined,
         pricingType: isService ? pricingType : 'fixed',
@@ -486,58 +623,171 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
             </div>
           </div>
 
-          {/* Image Upload or URL */}
+          {/* Multiple Advertisement Photos Manager */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
-              Item Photo (Upload or URL)
-            </label>
-            <div className="flex items-center gap-3">
-              <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 hover:border-[#FF5A36] rounded-xl py-2 px-3 text-xs font-semibold text-gray-600 hover:text-[#FF5A36] transition-colors bg-gray-50">
-                <UploadCloud className="w-4 h-4" />
-                <span>Upload File</span>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-gray-700 uppercase tracking-wider">
+                <Images className="w-3.5 h-3.5 text-[#FF5A36]" />
+                <span>Photos ({images.length}/{MAX_IMAGES})</span>
+              </label>
+              <span className="text-[11px] text-gray-500 font-medium">
+                First photo is the main cover
+              </span>
+            </div>
+
+            {/* Upload Buttons & URL Input */}
+            <div className="flex flex-col sm:flex-row gap-2 mb-3">
+              <label className="cursor-pointer flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 hover:border-[#FF5A36] rounded-xl py-2.5 px-4 text-xs font-bold text-gray-700 hover:text-[#FF5A36] transition-colors bg-gray-50 hover:bg-orange-50/50">
+                {isUploadingImages ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-[#FF5A36]" />
+                ) : (
+                  <UploadCloud className="w-4 h-4" />
+                )}
+                <span>{isUploadingImages ? 'Compressing & Adding...' : 'Upload Photos (Multi-Select)'}</span>
                 <input
                   type="file"
+                  multiple
                   accept="image/*"
-                  onChange={handleFileUpload}
+                  disabled={isUploadingImages || images.length >= MAX_IMAGES}
+                  onChange={handleMultipleFileUpload}
                   className="hidden"
                 />
               </label>
 
-              <span className="text-xs text-gray-400">or</span>
-
-              <input
-                type="url"
-                value={imageUrl}
-                onChange={(e) => {
-                  setImageUrl(e.target.value);
-                  setImagePreview(e.target.value);
-                }}
-                placeholder="Paste Image URL"
-                className="flex-1 px-3 py-2 rounded-xl border border-gray-300 text-xs focus:border-[#FF5A36] outline-none"
-              />
-            </div>
-
-            {/* Image Preview Thumbnail */}
-            {imagePreview && (
-              <div className="mt-2 flex items-center gap-3 bg-gray-50 p-2 rounded-xl border border-gray-200">
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="w-14 h-14 rounded-lg object-cover border border-gray-300"
+              <div className="flex-1 flex items-center gap-1.5">
+                <input
+                  type="url"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddUrl();
+                    }
+                  }}
+                  disabled={images.length >= MAX_IMAGES}
+                  placeholder="Or paste photo link (https://...)"
+                  className="flex-1 px-3 py-2 rounded-xl border border-gray-300 text-xs focus:border-[#FF5A36] outline-none disabled:bg-gray-100"
                 />
-                <span className="text-xs text-gray-600 font-medium">Image ready for publishing</span>
                 <button
                   type="button"
-                  onClick={() => {
-                    setImagePreview('');
-                    setImageUrl('');
-                  }}
-                  className="ml-auto text-xs text-rose-500 hover:underline"
+                  onClick={() => handleAddUrl()}
+                  disabled={!urlInput.trim() || images.length >= MAX_IMAGES}
+                  className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
                 >
-                  Remove
+                  Add URL
                 </button>
               </div>
+            </div>
+
+            {/* Thumbnails Grid */}
+            {images.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-gray-50 p-2.5 rounded-2xl border border-gray-200">
+                {images.map((img, idx) => (
+                  <div
+                    key={idx}
+                    className={`relative group rounded-xl overflow-hidden aspect-4/3 bg-gray-200 border-2 transition-all ${
+                      idx === 0 ? 'border-[#FF5A36] shadow-sm ring-1 ring-[#FF5A36]/30' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <img
+                      src={img}
+                      alt={`Photo ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+
+                    {/* Cover Photo Badge */}
+                    {idx === 0 ? (
+                      <div className="absolute top-1.5 left-1.5 bg-[#FF5A36] text-white text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded-md shadow-xs flex items-center gap-1 z-10">
+                        <Star className="w-2.5 h-2.5 fill-current" />
+                        <span>Cover</span>
+                      </div>
+                    ) : (
+                      <div className="absolute top-1.5 left-1.5 bg-black/50 backdrop-blur-xs text-white text-[9px] font-semibold px-1.5 py-0.5 rounded-md z-10">
+                        #{idx + 1}
+                      </div>
+                    )}
+
+                    {/* Action Overlay */}
+                    <div className="absolute inset-0 bg-black/65 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5 text-white z-20">
+                      <div className="flex items-center justify-between">
+                        {idx > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => handleSetCover(idx)}
+                            className="text-[9px] font-bold bg-white text-gray-900 px-1.5 py-0.5 rounded-md hover:bg-orange-50 hover:text-[#FF5A36] transition-colors cursor-pointer"
+                            title="Make this photo the main cover image"
+                          >
+                            Set Cover
+                          </button>
+                        ) : (
+                          <span className="text-[9px] font-bold text-amber-300">★ Main Cover</span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(idx)}
+                          className="w-6 h-6 rounded-md bg-red-600/90 hover:bg-red-600 text-white flex items-center justify-center transition-transform hover:scale-105 cursor-pointer"
+                          title="Delete photo"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      {/* Reorder Buttons */}
+                      <div className="flex items-center justify-between pt-1">
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={() => handleMoveImage(idx, 'left')}
+                          className="w-6 h-6 rounded-md bg-black/50 hover:bg-black/80 disabled:opacity-20 disabled:cursor-not-allowed flex items-center justify-center text-white cursor-pointer"
+                          title="Move earlier"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="text-[10px] font-semibold text-gray-200">
+                          {idx + 1}/{images.length}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={idx === images.length - 1}
+                          onClick={() => handleMoveImage(idx, 'right')}
+                          className="w-6 h-6 rounded-md bg-black/50 hover:bg-black/80 disabled:opacity-20 disabled:cursor-not-allowed flex items-center justify-center text-white cursor-pointer"
+                          title="Move later"
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Add More Slot if below MAX_IMAGES */}
+                {images.length < MAX_IMAGES && (
+                  <label className="cursor-pointer border-2 border-dashed border-gray-300 hover:border-[#FF5A36] rounded-xl flex flex-col items-center justify-center gap-1 aspect-4/3 text-gray-400 hover:text-[#FF5A36] transition-colors bg-white hover:bg-orange-50/30">
+                    <Plus className="w-5 h-5" />
+                    <span className="text-[11px] font-bold">Add Photo</span>
+                    <span className="text-[9px] text-gray-400">({MAX_IMAGES - images.length} left)</span>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      disabled={isUploadingImages}
+                      onChange={handleMultipleFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+            ) : (
+              <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 text-center">
+                <p className="text-xs text-gray-500">
+                  No photos added yet. Upload up to {MAX_IMAGES} photos of your item (front, back, details) or paste image links.
+                </p>
+              </div>
             )}
+            <p className="text-[10px] text-gray-400 mt-1">
+              Buyers look at multiple angles. You can add up to {MAX_IMAGES} photos, change the cover photo, or reorder anytime.
+            </p>
           </div>
 
           {/* Description with AI Assistant */}

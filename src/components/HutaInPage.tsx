@@ -39,7 +39,9 @@ import {
   Dog,
   Laptop,
   Plane,
-  Layers
+  Layers,
+  Plus,
+  ShieldCheck,
 } from 'lucide-react';
 
 export interface HutaCategoryItem {
@@ -266,160 +268,7 @@ export const HUTA_ALL_CATEGORIES: HutaCategoryItem[] = [
   },
 ];
 
-const EVENTS_DATA: EventItem[] = [
-  {
-    id: 'cardcon_lanka',
-    title: 'CARDCON & Collectibles Expo 2026',
-    category: 'Entertainment',
-    district: 'Colombo',
-    date: 'OCT 18 - 20, 2026',
-    month: 'OCT',
-    day: '18',
-    time: '10:00 AM - 08:00 PM',
-    location: 'Colombo 07',
-    venue: 'BMICH Exhibition Centre, Hall A',
-    image: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=800&auto=format&fit=crop&q=80',
-    badge: 'Popular',
-    price: 'Free Entry',
-    isFree: true,
-    attendees: 4200,
-    description: 'Sri Lanka’s premier trading card, gaming, pop culture, and collectible convention. Trade rare Pokémon, sports cards, comics, and participate in competitive tabletop showdowns.',
-    organizer: 'Lanka Collectors Guild'
-  },
-  {
-    id: 'colombo_motor_show',
-    title: 'Ceylon International Motor Show',
-    category: 'Exhibitions',
-    district: 'Colombo',
-    date: 'NOV 05 - 08, 2026',
-    month: 'NOV',
-    day: '05',
-    time: '09:00 AM - 09:00 PM',
-    location: 'Colombo 01',
-    venue: 'Colombo Port City Marina Boulevard',
-    image: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&auto=format&fit=crop&q=80',
-    badge: 'Featured',
-    price: 'LKR 1,500',
-    isFree: false,
-    attendees: 12500,
-    description: 'The premier automotive showcase featuring electric mobility, supercars, vintage classics, 4x4 overland rigs, and live drift exhibitions.',
-    organizer: 'Ceylon Motor Sports Club'
-  },
-  {
-    id: 'galle_food_fest',
-    title: 'Southern Spice & Seafood Festival',
-    category: 'Food & Culture',
-    district: 'Galle',
-    date: 'DEC 12 - 14, 2026',
-    month: 'DEC',
-    day: '12',
-    time: '04:00 PM - 11:30 PM',
-    location: 'Galle Fort',
-    venue: 'Galle Fort Ramparts Lawn',
-    image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80',
-    badge: 'Culinary',
-    price: 'Free Entry',
-    isFree: true,
-    attendees: 8900,
-    description: 'Authentic southern Sri Lankan seafood curries, artisanal bakeries, live acoustic island bands, and sunset ocean dining.',
-    organizer: 'Galle Heritage Tourism'
-  },
-  {
-    id: 'lanka_comic_con',
-    title: 'Lanka Comic Con & Gaming Arena',
-    category: 'Entertainment',
-    district: 'Colombo',
-    date: 'JAN 22 - 24, 2027',
-    month: 'JAN',
-    day: '22',
-    time: '11:00 AM - 09:00 PM',
-    location: 'Battaramulla',
-    venue: 'SLECC Exhibition Hall',
-    image: 'https://images.unsplash.com/photo-1563089145-599997674d42?w=800&auto=format&fit=crop&q=80',
-    badge: 'Gaming',
-    price: 'LKR 800',
-    isFree: false,
-    attendees: 6400,
-    description: 'Cosplay championships, international indie game stalls, VR gaming suites, artist alleys, and tabletop tournaments.',
-    organizer: 'Geek Club of Sri Lanka'
-  },
-  {
-    id: 'kandy_heritage_fest',
-    title: 'Kandy Hill Country Crafts & Culture',
-    category: 'Food & Culture',
-    district: 'Kandy',
-    date: 'FEB 04 - 07, 2027',
-    month: 'FEB',
-    day: '04',
-    time: '10:00 AM - 08:30 PM',
-    location: 'Kandy',
-    venue: 'Kandy Lake Round Promenade',
-    image: 'https://images.unsplash.com/photo-1609137144822-4752c0f4553a?w=800&auto=format&fit=crop&q=80',
-    badge: 'Cultural',
-    price: 'Free Entry',
-    isFree: true,
-    attendees: 5100,
-    description: 'Traditional Kandyan brassware, handloom weaving masterclasses, Ceylon spice exhibits, and authentic hill-country culinary treats.',
-    organizer: 'Central Province Cultural Dept'
-  },
-  {
-    id: 'tech_summit_colombo',
-    title: 'AI & Digital Sri Lanka Summit',
-    category: 'Tech',
-    district: 'Colombo',
-    date: 'FEB 20 - 21, 2027',
-    month: 'FEB',
-    day: '20',
-    time: '08:30 AM - 05:30 PM',
-    location: 'Colombo 03',
-    venue: 'Cinnamon Grand Colombo, Oak Room',
-    image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&auto=format&fit=crop&q=80',
-    badge: 'Tech Summit',
-    price: 'Registration Req.',
-    isFree: false,
-    attendees: 3100,
-    description: 'Keynotes from top global AI pioneers, venture capital speed-dating, startup pitch battle with USD 25k in grants, and engineering workshops.',
-    organizer: 'SLASSCOM & Tech Lanka'
-  },
-  {
-    id: 'jaffna_music_fiesta',
-    title: 'Northern Beats & Food Carnival',
-    category: 'Food & Culture',
-    district: 'Jaffna',
-    date: 'MAR 14 - 15, 2027',
-    month: 'MAR',
-    day: '14',
-    time: '05:00 PM - 11:00 PM',
-    location: 'Jaffna',
-    venue: 'Jaffna Cultural Centre Open Arena',
-    image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=800&auto=format&fit=crop&q=80',
-    badge: 'Live Music',
-    price: 'Free Entry',
-    isFree: true,
-    attendees: 7300,
-    description: 'Celebration of northern Sri Lankan flavours (authentic Jaffna crab curry, Odiyal Kool), Carnatic fusion bands, and fire performances.',
-    organizer: 'Northern Tourism Bureau'
-  },
-  {
-    id: 'negombo_beach_fest',
-    title: 'Negombo Coastline Beach Fest & Regatta',
-    category: 'Sports',
-    district: 'Negombo',
-    date: 'APR 03 - 05, 2027',
-    month: 'APR',
-    day: '03',
-    time: '08:00 AM - 10:00 PM',
-    location: 'Negombo',
-    venue: 'Negombo Beach Park Golden Sands',
-    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80',
-    badge: 'Beach & Sports',
-    price: 'Free Entry',
-    isFree: true,
-    attendees: 9800,
-    description: 'Catamaran regatta races, beach volleyball tournament, live acoustic sets by the shore, and sundown cocktail lounges.',
-    organizer: 'Negombo Municipal Council'
-  }
-];
+const EVENTS_DATA: EventItem[] = [];
 
 interface HutaInPageProps {
   onBackToHome: () => void;
@@ -427,6 +276,8 @@ interface HutaInPageProps {
   onSelectCategory?: (category: string) => void;
   onToast?: (msg: string, type?: 'success' | 'error' | 'info') => void;
   events?: EventItem[];
+  isAdminLoggedIn?: boolean;
+  onNavigateToAdminEvents?: () => void;
 }
 
 export const HutaInPage: React.FC<HutaInPageProps> = ({
@@ -434,11 +285,12 @@ export const HutaInPage: React.FC<HutaInPageProps> = ({
   onOpenPostAd,
   onSelectCategory,
   onToast,
-  events,
+  events = [],
+  isAdminLoggedIn = false,
+  onNavigateToAdminEvents,
 }) => {
-  const allEvents = events && events.length > 0 ? events : EVENTS_DATA;
-  const spotlightEvents = allEvents.filter(e => e.isSpotlight);
-  const displaySpotlight = spotlightEvents.length > 0 ? spotlightEvents : allEvents.slice(0, 4);
+  const allEvents = events;
+  const displaySpotlight = allEvents.filter((e) => e.isSpotlight);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('All');
@@ -594,59 +446,101 @@ export const HutaInPage: React.FC<HutaInPageProps> = ({
         <div className="bg-white rounded-3xl p-4 sm:p-6 shadow-xl border border-gray-100">
           <div className="flex items-center justify-between pb-3 border-b border-gray-100">
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-[#FF5A36] animate-pulse" />
+              <div className={`w-2.5 h-2.5 rounded-full ${displaySpotlight.length > 0 ? 'bg-[#FF5A36] animate-pulse' : 'bg-gray-300'}`} />
               <h2 className="text-lg sm:text-xl font-black text-gray-900 tracking-tight">
                 Upcoming Spotlight
               </h2>
             </div>
-            <span className="text-xs font-bold text-gray-400">
-              {displaySpotlight.length} In Spotlight • {allEvents.length} Events
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-gray-400">
+                {displaySpotlight.length} In Spotlight • {allEvents.length} Events
+              </span>
+              {isAdminLoggedIn && onNavigateToAdminEvents && (
+                <button
+                  type="button"
+                  onClick={onNavigateToAdminEvents}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-[#FF5A36] hover:text-[#E04826] bg-orange-50 hover:bg-orange-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer border border-orange-200/60"
+                  title="Manage and publish spotlight banners in Admin Portal"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Admin: Add Banner</span>
+                </button>
+              )}
+            </div>
           </div>
 
-          <div className="mt-4 flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
-            {displaySpotlight.map((evt) => (
-              <div
-                key={evt.id}
-                onClick={() => setSelectedEventModal(evt)}
-                className="min-w-[260px] sm:min-w-[320px] rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md border border-gray-100 group flex-shrink-0 cursor-pointer bg-gray-900"
-              >
-                <div className="h-40 w-full relative">
-                  <img
-                    src={evt.image}
-                    alt={evt.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+          {displaySpotlight.length > 0 ? (
+            <div className="mt-4 flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
+              {displaySpotlight.map((evt) => (
+                <div
+                  key={evt.id}
+                  onClick={() => setSelectedEventModal(evt)}
+                  className="min-w-[260px] sm:min-w-[320px] rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md border border-gray-100 group flex-shrink-0 cursor-pointer bg-gray-900"
+                >
+                  <div className="h-40 w-full relative">
+                    <img
+                      src={evt.image}
+                      alt={evt.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90 group-hover:opacity-100"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
-                  {/* Left Date Badge */}
-                  <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm rounded-xl px-2.5 py-1 text-center shadow-md">
-                    <span className="block text-[9px] font-black text-[#FF5A36] uppercase leading-none">
-                      {evt.month}
-                    </span>
-                    <span className="block text-sm font-black text-gray-900 leading-tight">
-                      {evt.day}
-                    </span>
-                  </div>
+                    {/* Left Date Badge */}
+                    <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm rounded-xl px-2.5 py-1 text-center shadow-md">
+                      <span className="block text-[9px] font-black text-[#FF5A36] uppercase leading-none">
+                        {evt.month}
+                      </span>
+                      <span className="block text-sm font-black text-gray-900 leading-tight">
+                        {evt.day}
+                      </span>
+                    </div>
 
-                  {/* Price Tag */}
-                  <div className="absolute top-3 right-3 bg-[#0A2540]/85 backdrop-blur-sm text-white text-[10px] font-extrabold px-2.5 py-1 rounded-lg border border-white/15">
-                    {evt.price}
-                  </div>
+                    {/* Price Tag */}
+                    <div className="absolute top-3 right-3 bg-[#0A2540]/85 backdrop-blur-sm text-white text-[10px] font-extrabold px-2.5 py-1 rounded-lg border border-white/15">
+                      {evt.price}
+                    </div>
 
-                  <div className="absolute bottom-3 left-3 right-3 text-white">
-                    <h3 className="font-extrabold text-sm sm:text-base leading-tight line-clamp-1 group-hover:text-[#FF5A36] transition-colors">
-                      {evt.title}
-                    </h3>
-                    <p className="text-[11px] text-gray-300 flex items-center gap-1 mt-1 truncate">
-                      <MapPin className="w-3 h-3 text-[#FF5A36] shrink-0" />
-                      <span className="truncate">{evt.venue}</span>
-                    </p>
+                    <div className="absolute bottom-3 left-3 right-3 text-white">
+                      <h3 className="font-extrabold text-sm sm:text-base leading-tight line-clamp-1 group-hover:text-[#FF5A36] transition-colors">
+                        {evt.title}
+                      </h3>
+                      <p className="text-[11px] text-gray-300 flex items-center gap-1 mt-1 truncate">
+                        <MapPin className="w-3 h-3 text-[#FF5A36] shrink-0" />
+                        <span className="truncate">{evt.venue}</span>
+                      </p>
+                    </div>
                   </div>
                 </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-4 p-6 sm:p-8 rounded-2xl bg-gray-50/60 border border-dashed border-gray-200 text-center flex flex-col items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-orange-100/70 text-[#FF5A36] flex items-center justify-center mb-2.5 shadow-xs">
+                <Sparkles className="w-6 h-6" />
               </div>
-            ))}
-          </div>
+              <h3 className="text-sm sm:text-base font-black text-gray-900">
+                No Spotlight Banners Featured Yet
+              </h3>
+              <p className="text-xs text-gray-500 max-w-md mt-1 leading-relaxed">
+                Featured festivals, major expos, and premium event highlights will be pinned here.
+              </p>
+              {isAdminLoggedIn ? (
+                <button
+                  type="button"
+                  onClick={onNavigateToAdminEvents}
+                  className="mt-3.5 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#FF5A36] hover:bg-[#E04826] text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Spotlight Banner in Admin Portal</span>
+                </button>
+              ) : (
+                <div className="mt-2.5 inline-flex items-center gap-1 text-[11px] font-semibold text-gray-400">
+                  <ShieldCheck className="w-3.5 h-3.5 text-gray-400" />
+                  <span>Curated by HUTA Marketplace • Admin Managed</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -825,6 +719,16 @@ export const HutaInPage: React.FC<HutaInPageProps> = ({
               Explore scheduled expos, concerts, beach festivals, and weekend gatherings
             </p>
           </div>
+          {isAdminLoggedIn && onNavigateToAdminEvents && (
+            <button
+              type="button"
+              onClick={onNavigateToAdminEvents}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#FF5A36] hover:bg-[#E04826] text-white text-xs font-bold transition-all shadow-xs cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Admin: Add Event</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -914,26 +818,58 @@ export const HutaInPage: React.FC<HutaInPageProps> = ({
       {/* 4. Events Display Grid (Crafted for High Visibility & Aesthetics) */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         {filteredEvents.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border border-gray-200 shadow-sm max-w-md mx-auto space-y-4">
-            <div className="w-16 h-16 rounded-full bg-orange-50 text-[#FF5A36] flex items-center justify-center mx-auto">
-              <Calendar className="w-8 h-8 stroke-[1.5]" />
+          allEvents.length === 0 ? (
+            <div className="bg-white rounded-3xl p-10 sm:p-14 text-center border border-dashed border-gray-200 shadow-sm max-w-lg mx-auto space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-orange-50 text-[#FF5A36] flex items-center justify-center mx-auto shadow-xs">
+                <Calendar className="w-8 h-8 stroke-[1.5]" />
+              </div>
+              <h3 className="text-lg font-black text-gray-900">No Upcoming Festivals & Events</h3>
+              <p className="text-xs sm:text-sm text-gray-500 leading-relaxed max-w-md mx-auto">
+                There are currently no events or festivals scheduled. As soon as community exhibitions, expos, and festivals are announced, they will appear here.
+              </p>
+              {isAdminLoggedIn ? (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={onNavigateToAdminEvents}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#FF5A36] hover:bg-[#E04826] text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add New Event via Admin Portal</span>
+                  </button>
+                  <p className="text-[11px] text-gray-400 mt-2">
+                    Logged in as Admin • Only admins can create and publish events
+                  </p>
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                  <span>Curated & verified by HUTA Marketplace Admin</span>
+                </div>
+              )}
             </div>
-            <h3 className="text-lg font-extrabold text-gray-900">No events found</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              We couldn't find events matching your selected filters. Try choosing "All" or clear your search term.
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedCategory('All');
-                setSelectedDistrict('All');
-                setSearchQuery('');
-              }}
-              className="px-5 py-2.5 rounded-xl bg-[#0A2540] text-white text-xs font-bold hover:bg-[#112f50] transition-colors cursor-pointer"
-            >
-              Reset Filters
-            </button>
-          </div>
+          ) : (
+            <div className="bg-white rounded-3xl p-12 text-center border border-gray-200 shadow-sm max-w-md mx-auto space-y-4">
+              <div className="w-16 h-16 rounded-full bg-orange-50 text-[#FF5A36] flex items-center justify-center mx-auto">
+                <Calendar className="w-8 h-8 stroke-[1.5]" />
+              </div>
+              <h3 className="text-lg font-extrabold text-gray-900">No matching events found</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                We couldn't find events matching your selected filters. Try choosing "All" or clear your search term.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedCategory('All');
+                  setSelectedDistrict('All');
+                  setSearchQuery('');
+                }}
+                className="px-5 py-2.5 rounded-xl bg-[#0A2540] text-white text-xs font-bold hover:bg-[#112f50] transition-colors cursor-pointer"
+              >
+                Reset Filters
+              </button>
+            </div>
+          )
         ) : viewMode === 'grid' ? (
           /* High-Visibility Card Grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
