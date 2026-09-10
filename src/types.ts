@@ -105,4 +105,26 @@ export interface EventItem {
   isSpotlight?: boolean;
 }
 
+export type HeroAnimationType = 'slide' | 'fade' | 'pulse' | 'glow';
+
+export interface HeroAd {
+  id: string;
+  badge: string; // e.g. "Special Promotion", "Featured Partner"
+  title: string; // e.g. "Find Premium Vehicles & Parts"
+  highlightText?: string; // e.g. "with Zero Commission"
+  subtitle: string; // e.g. "Direct contact with verified vehicle owners across Sri Lanka"
+  ctaText?: string; // e.g. "Explore Vehicles" or "Post Ad Now"
+  ctaAction?: string; // e.g. "Vehicles" (category) | "post_ad" | "https://..."
+  bgImage?: string; // optional background graphic
+  gradientTheme?: 'orange' | 'blue' | 'emerald' | 'purple' | 'amber';
+  animationType?: HeroAnimationType;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface HeroAdSettings {
+  mode: 'default' | 'rotate' | 'ads_only';
+  rotationIntervalSeconds: number;
+}
+
 

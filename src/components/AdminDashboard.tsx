@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Listing, EventItem } from '../types';
+import { Listing, EventItem, HeroAd, HeroAdSettings } from '../types';
 import {
   ShieldCheck,
   Clock,
@@ -30,10 +30,12 @@ import {
   Users,
   AlertCircle,
   UploadCloud,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Megaphone,
 } from 'lucide-react';
 import { formatLKR } from './ListingsSection';
 import { api } from '../services/api';
+import { AdminHeroAdsManager } from './AdminHeroAdsManager';
 
 const compressBannerImage = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -83,6 +85,8 @@ const BANNER_PRESETS = [
 interface AdminDashboardProps {
   listings: Listing[];
   events?: EventItem[];
+  heroAds?: HeroAd[];
+  heroSettings?: HeroAdSettings;
   onApprove: (id: string) => Promise<void>;
   onReject: (id: string) => Promise<void>;
   onToggleFeature: (id: string) => Promise<void>;
@@ -98,11 +102,18 @@ interface AdminDashboardProps {
   onDeleteEvent?: (id: string) => void;
   onToggleSpotlightEvent?: (id: string) => Promise<void>;
   onClearAllListings?: () => Promise<void>;
+  onUpdateHeroSettings?: (settings: Partial<HeroAdSettings>) => Promise<void>;
+  onCreateHeroAd?: (ad: Partial<HeroAd>) => Promise<void>;
+  onUpdateHeroAd?: (id: string, ad: Partial<HeroAd>) => Promise<void>;
+  onToggleHeroAd?: (id: string) => Promise<void>;
+  onDeleteHeroAd?: (id: string) => Promise<void>;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   listings,
   events,
+  heroAds = [],
+  heroSettings = { mode: 'default', rotationIntervalSeconds: 6 },
   onApprove,
   onReject,
   onToggleFeature,
@@ -118,8 +129,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onDeleteEvent,
   onToggleSpotlightEvent,
   onClearAllListings,
+  onUpdateHeroSettings,
+  onCreateHeroAd,
+  onUpdateHeroAd,
+  onToggleHeroAd,
+  onDeleteHeroAd,
 }) => {
-  const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'featured' | 'services' | 'spotlight'>('all');
+  const [filterTab, setFilterTab] = useState<'all' | 'pending' | 'featured' | 'services' | 'spotlight' | 'hero_ads'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('all');
   const [showMonetizationGuide, setShowMonetizationGuide] = useState(true);
@@ -1004,7 +1020,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6">
         <div
           onClick={() => setFilterTab('all')}
           className={`p-6 rounded-2xl border transition-all cursor-pointer ${
@@ -1087,6 +1103,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <div className="text-3xl font-extrabold text-[#FF5A36]">{spotlightEventsCount}</div>
           <p className="text-xs text-gray-500 mt-1 font-medium">
             {localEvents.length} events • Click to manage
+          </p>
+        </div>
+
+        <div
+          id="admin-metric-hero-ads"
+          onClick={() => setFilterTab('hero_ads')}
+          className={`p-6 rounded-2xl border transition-all cursor-pointer ${
+            filterTab === 'hero_ads'
+              ? 'bg-white border-[#FF5A36] shadow-lg -translate-y-1 ring-2 ring-[#FF5A36]/20'
+              : 'bg-white border-gray-200 hover:border-gray-300'
+          }`}
+        >
+          <div className="flex items-center justify-between text-orange-600 mb-2">
+            <span className="text-xs font-bold uppercase tracking-wider">Hero Animated Ads</span>
+            <Megaphone className="w-5 h-5 text-orange-500" />
+          </div>
+          <div className="text-3xl font-extrabold text-orange-600">{heroAds.length}</div>
+          <p className="text-xs text-gray-500 mt-1 font-medium capitalize">
+            Mode: {heroSettings.mode.replace('_', ' ')}
           </p>
         </div>
       </div>
@@ -1256,6 +1291,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <Sparkles className="w-3.5 h-3.5" />
               <span>Upcoming Spotlight ({spotlightEventsCount})</span>
             </button>
+            <button
+              id="admin-filter-hero-ads-tab"
+              type="button"
+              onClick={() => setFilterTab('hero_ads')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                filterTab === 'hero_ads'
+                  ? 'bg-[#FF5A36] text-white shadow-sm'
+                  : 'bg-orange-50 text-[#FF5A36] hover:bg-orange-100 border border-orange-200/60'
+              }`}
+            >
+              <Megaphone className="w-3.5 h-3.5" />
+              <span>Hero Ads & Banners ({heroAds.length})</span>
+            </button>
           </div>
 
           {filterTab === 'spotlight' && (
@@ -1270,44 +1318,60 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
           )}
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <div className="relative flex-1 sm:w-64">
-              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search title, phone, author..."
-                className="w-full pl-8 pr-7 py-1.5 rounded-xl border border-gray-200 text-xs focus:border-[#FF5A36] outline-none"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
+          {filterTab !== 'hero_ads' && (
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search title, phone, author..."
+                  className="w-full pl-8 pr-7 py-1.5 rounded-xl border border-gray-200 text-xs focus:border-[#FF5A36] outline-none"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
 
-            <select
-              value={selectedDistrict}
-              onChange={(e) => setSelectedDistrict(e.target.value)}
-              className="px-2.5 py-1.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 bg-white outline-none focus:border-[#FF5A36]"
-            >
-              <option value="all">All Districts</option>
-              <option value="Colombo">Colombo</option>
-              <option value="Gampaha">Gampaha</option>
-              <option value="Kandy">Kandy</option>
-              <option value="Galle">Galle</option>
-              <option value="Kalutara">Kalutara</option>
-              <option value="Kurunegala">Kurunegala</option>
-            </select>
-          </div>
+              <select
+                value={selectedDistrict}
+                onChange={(e) => setSelectedDistrict(e.target.value)}
+                className="px-2.5 py-1.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-700 bg-white outline-none focus:border-[#FF5A36]"
+              >
+                <option value="all">All Districts</option>
+                <option value="Colombo">Colombo</option>
+                <option value="Gampaha">Gampaha</option>
+                <option value="Kandy">Kandy</option>
+                <option value="Galle">Galle</option>
+                <option value="Kalutara">Kalutara</option>
+                <option value="Kurunegala">Kurunegala</option>
+              </select>
+            </div>
+          )}
         </div>
 
-        {/* Table Content */}
+        {/* Content Section */}
+        {filterTab === 'hero_ads' ? (
+          <div className="p-4 sm:p-6">
+            <AdminHeroAdsManager
+              heroAds={heroAds}
+              heroSettings={heroSettings}
+              onUpdateHeroSettings={onUpdateHeroSettings}
+              onCreateHeroAd={onCreateHeroAd}
+              onUpdateHeroAd={onUpdateHeroAd}
+              onToggleHeroAd={onToggleHeroAd}
+              onDeleteHeroAd={onDeleteHeroAd}
+              onToast={onToast}
+            />
+          </div>
+        ) : (
         <div className="overflow-x-auto">
           {filterTab === 'spotlight' ? (
             <table className="w-full text-left text-sm">
@@ -1603,6 +1667,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </table>
           )}
         </div>
+        )}
       </div>
 
       {/* Change Admin Password Modal */}

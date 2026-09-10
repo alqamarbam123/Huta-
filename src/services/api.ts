@@ -1,4 +1,4 @@
-import { Listing, User, EventItem } from '../types';
+import { Listing, User, EventItem, HeroAd, HeroAdSettings } from '../types';
 
 const API_BASE = '/api';
 
@@ -403,6 +403,134 @@ export const api = {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Failed to delete event');
+    }
+    return res.json();
+  },
+
+  // Hero Ads & Banners
+  async getHeroAds(): Promise<{ settings: HeroAdSettings; ads: HeroAd[] }> {
+    try {
+      const res = await fetch(`${API_BASE}/hero-ads`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.ads)) {
+          try {
+            localStorage.setItem('huta_hero_ads_cache', JSON.stringify(data));
+          } catch {
+            // ignore
+          }
+          return data;
+        }
+      }
+    } catch {
+      // ignore network error
+    }
+
+    try {
+      const cached = localStorage.getItem('huta_hero_ads_cache');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && Array.isArray(parsed.ads)) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    return {
+      settings: {
+        mode: 'default',
+        rotationIntervalSeconds: 6,
+      },
+      ads: [
+        {
+          id: 'hero-ad-1',
+          badge: '🌟 Exclusive Promotion',
+          title: 'Sell Your Vehicle or Property in 24 Hours',
+          highlightText: 'with HUTA Turbo Ad',
+          subtitle: 'Direct WhatsApp inquiries from thousands of verified buyers across all 25 districts with zero broker fees.',
+          ctaText: 'Post Free Ad Now',
+          ctaAction: 'post_ad',
+          gradientTheme: 'orange',
+          animationType: 'pulse',
+          isActive: true,
+          createdAt: new Date().toISOString(),
+        },
+        {
+          id: 'hero-ad-2',
+          badge: '🏢 Featured Developer',
+          title: 'Discover Luxury Beachside Apartments & Land',
+          highlightText: 'in Colombo, Galle & Kandy',
+          subtitle: 'Explore 1,200+ verified listings with clear deeds, video walkthroughs, and direct developer contacts.',
+          ctaText: 'Explore Properties',
+          ctaAction: 'Property',
+          gradientTheme: 'blue',
+          animationType: 'slide',
+          isActive: true,
+          createdAt: new Date().toISOString(),
+        }
+      ],
+    };
+  },
+
+  async updateHeroAdSettings(settings: Partial<HeroAdSettings>): Promise<HeroAdSettings> {
+    const res = await fetch(`${API_BASE}/admin/hero-ads/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to update hero ad settings');
+    }
+    return res.json();
+  },
+
+  async createHeroAd(data: Partial<HeroAd>): Promise<HeroAd> {
+    const res = await fetch(`${API_BASE}/admin/hero-ads`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to create hero ad');
+    }
+    return res.json();
+  },
+
+  async updateHeroAd(id: string, data: Partial<HeroAd>): Promise<HeroAd> {
+    const res = await fetch(`${API_BASE}/admin/hero-ads/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to update hero ad');
+    }
+    return res.json();
+  },
+
+  async toggleHeroAd(id: string): Promise<HeroAd> {
+    const res = await fetch(`${API_BASE}/admin/hero-ads/${id}/toggle`, {
+      method: 'PUT',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to toggle hero ad');
+    }
+    return res.json();
+  },
+
+  async deleteHeroAd(id: string): Promise<{ success: boolean }> {
+    const res = await fetch(`${API_BASE}/admin/hero-ads/${id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to delete hero ad');
     }
     return res.json();
   }

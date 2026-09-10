@@ -57,12 +57,33 @@ interface EventItem {
   isSpotlight?: boolean;
 }
 
+interface HeroAd {
+  id: string;
+  badge: string;
+  title: string;
+  highlightText?: string;
+  subtitle: string;
+  ctaText?: string;
+  ctaAction?: string;
+  bgImage?: string;
+  gradientTheme?: 'orange' | 'blue' | 'emerald' | 'purple' | 'amber';
+  animationType?: 'slide' | 'fade' | 'pulse' | 'glow';
+  isActive: boolean;
+  createdAt: string;
+}
+
+interface HeroAdSettings {
+  mode: 'default' | 'rotate' | 'ads_only';
+  rotationIntervalSeconds: number;
+}
+
 const PORT = 3000;
 const DATA_DIR = path.join(process.cwd(), 'data');
 const LISTINGS_FILE = path.join(DATA_DIR, 'listings.json');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const EVENTS_FILE = path.join(DATA_DIR, 'events.json');
 const ADMIN_CONFIG_FILE = path.join(DATA_DIR, 'admin.json');
+const HERO_ADS_FILE = path.join(DATA_DIR, 'hero-ads.json');
 
 interface AdminConfig {
   password?: string;
@@ -272,9 +293,73 @@ function saveStoredEvents(events: EventItem[]) {
   }
 }
 
+const DEFAULT_HERO_SETTINGS: HeroAdSettings = {
+  mode: 'default', // By default, keep the default original hero!
+  rotationIntervalSeconds: 6,
+};
+
+const DEFAULT_HERO_ADS: HeroAd[] = [
+  {
+    id: 'hero-ad-1',
+    badge: '🌟 Exclusive Promotion',
+    title: 'Sell Your Vehicle or Property in 24 Hours',
+    highlightText: 'with HUTA Turbo Ad',
+    subtitle: 'Direct WhatsApp inquiries from thousands of verified buyers across all 25 districts with zero broker fees.',
+    ctaText: 'Post Free Ad Now',
+    ctaAction: 'post_ad',
+    gradientTheme: 'orange',
+    animationType: 'pulse',
+    isActive: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'hero-ad-2',
+    badge: '🏢 Featured Developer',
+    title: 'Discover Luxury Beachside Apartments & Land',
+    highlightText: 'in Colombo, Galle & Kandy',
+    subtitle: 'Explore 1,200+ verified listings with clear deeds, video walkthroughs, and direct developer contacts.',
+    ctaText: 'Explore Properties',
+    ctaAction: 'Property',
+    gradientTheme: 'blue',
+    animationType: 'slide',
+    isActive: true,
+    createdAt: new Date().toISOString(),
+  },
+];
+
+function getStoredHeroAdsData(): { settings: HeroAdSettings; ads: HeroAd[] } {
+  try {
+    if (fs.existsSync(HERO_ADS_FILE)) {
+      const data = fs.readFileSync(HERO_ADS_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (parsed && Array.isArray(parsed.ads)) {
+        return {
+          settings: parsed.settings || DEFAULT_HERO_SETTINGS,
+          ads: parsed.ads,
+        };
+      }
+    }
+  } catch (err) {
+    console.error('Error reading hero ads file, fallback to defaults', err);
+  }
+  return {
+    settings: DEFAULT_HERO_SETTINGS,
+    ads: DEFAULT_HERO_ADS,
+  };
+}
+
+function saveStoredHeroAdsData(data: { settings: HeroAdSettings; ads: HeroAd[] }) {
+  try {
+    fs.writeFileSync(HERO_ADS_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Error saving hero ads file', err);
+  }
+}
+
 let listingsCache = getStoredListings();
 let usersCache = getStoredUsers();
 let eventsCache = getStoredEvents();
+let heroAdsDataCache = getStoredHeroAdsData();
 
 // Lazy initialize Gemini client
 let genAIClient: GoogleGenAI | null = null;
@@ -760,6 +845,130 @@ async function startServer() {
     listingsCache = [];
     saveStoredListings(listingsCache);
     res.json({ success: true, message: 'All listings removed for fresh launch', count: 0 });
+  });
+
+  // -------------------------------------------------------------
+  // Hero Banner Ads & Announcements Routes
+  // -------------------------------------------------------------
+
+  // GET /api/hero-ads
+  app.get('/api/hero-ads', (req, res) => {
+    res.json(heroAdsDataCache);
+  });
+
+  // PUT /api/admin/hero-ads/settings
+  app.put('/api/admin/hero-ads/settings', (req, res) => {
+    const { mode, rotationIntervalSeconds } = req.body;
+    if (mode && ['default', 'rotate', 'ads_only'].includes(mode)) {
+      heroAdsDataCache.settings.mode = mode;
+    }
+    if (rotationIntervalSeconds && typeof rotationIntervalSeconds === 'number') {
+      heroAdsDataCache.settings.rotationIntervalSeconds = Math.max(2, Math.min(60, rotationIntervalSeconds));
+    }
+    saveStoredHeroAdsData(heroAdsDataCache);
+    res.json(heroAdsDataCache.settings);
+  });
+
+  // POST /api/admin/hero-ads
+  app.post('/api/admin/hero-ads', (req, res) => {
+    const {
+      badge,
+      title,
+      highlightText,
+      subtitle,
+      ctaText,
+      ctaAction,
+      bgImage,
+      gradientTheme,
+      animationType,
+      isActive,
+    } = req.body;
+
+    if (!title || !subtitle) {
+      return res.status(400).json({ error: 'Title and subtitle are required for hero ad' });
+    }
+
+    const newAd: HeroAd = {
+      id: `hero-ad-${Date.now()}`,
+      badge: String(badge || 'Sponsored Promotion').trim(),
+      title: String(title).trim(),
+      highlightText: highlightText ? String(highlightText).trim() : undefined,
+      subtitle: String(subtitle).trim(),
+      ctaText: ctaText ? String(ctaText).trim() : undefined,
+      ctaAction: ctaAction ? String(ctaAction).trim() : undefined,
+      bgImage: bgImage ? String(bgImage).trim() : undefined,
+      gradientTheme: gradientTheme || 'orange',
+      animationType: animationType || 'slide',
+      isActive: isActive !== undefined ? Boolean(isActive) : true,
+      createdAt: new Date().toISOString(),
+    };
+
+    heroAdsDataCache.ads.unshift(newAd);
+    saveStoredHeroAdsData(heroAdsDataCache);
+    res.status(201).json(newAd);
+  });
+
+  // PUT /api/admin/hero-ads/:id
+  app.put('/api/admin/hero-ads/:id', (req, res) => {
+    const index = heroAdsDataCache.ads.findIndex((a) => a.id === req.params.id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Hero ad not found' });
+    }
+
+    const existing = heroAdsDataCache.ads[index];
+    const {
+      badge,
+      title,
+      highlightText,
+      subtitle,
+      ctaText,
+      ctaAction,
+      bgImage,
+      gradientTheme,
+      animationType,
+      isActive,
+    } = req.body;
+
+    heroAdsDataCache.ads[index] = {
+      ...existing,
+      badge: badge !== undefined ? String(badge).trim() : existing.badge,
+      title: title !== undefined ? String(title).trim() : existing.title,
+      highlightText: highlightText !== undefined ? String(highlightText).trim() : existing.highlightText,
+      subtitle: subtitle !== undefined ? String(subtitle).trim() : existing.subtitle,
+      ctaText: ctaText !== undefined ? String(ctaText).trim() : existing.ctaText,
+      ctaAction: ctaAction !== undefined ? String(ctaAction).trim() : existing.ctaAction,
+      bgImage: bgImage !== undefined ? String(bgImage).trim() : existing.bgImage,
+      gradientTheme: gradientTheme !== undefined ? gradientTheme : existing.gradientTheme,
+      animationType: animationType !== undefined ? animationType : existing.animationType,
+      isActive: isActive !== undefined ? Boolean(isActive) : existing.isActive,
+    };
+
+    saveStoredHeroAdsData(heroAdsDataCache);
+    res.json(heroAdsDataCache.ads[index]);
+  });
+
+  // PUT /api/admin/hero-ads/:id/toggle
+  app.put('/api/admin/hero-ads/:id/toggle', (req, res) => {
+    const index = heroAdsDataCache.ads.findIndex((a) => a.id === req.params.id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Hero ad not found' });
+    }
+
+    heroAdsDataCache.ads[index].isActive = !heroAdsDataCache.ads[index].isActive;
+    saveStoredHeroAdsData(heroAdsDataCache);
+    res.json(heroAdsDataCache.ads[index]);
+  });
+
+  // DELETE /api/admin/hero-ads/:id
+  app.delete('/api/admin/hero-ads/:id', (req, res) => {
+    const index = heroAdsDataCache.ads.findIndex((a) => a.id === req.params.id);
+    if (index === -1) {
+      return res.status(404).json({ error: 'Hero ad not found' });
+    }
+
+    heroAdsDataCache.ads.splice(index, 1);
+    saveStoredHeroAdsData(heroAdsDataCache);
+    res.json({ success: true, message: 'Hero ad deleted' });
   });
 
   // User register

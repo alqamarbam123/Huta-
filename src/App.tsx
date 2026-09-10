@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Listing, User, ViewTab, EventItem } from './types';
+import { Listing, User, ViewTab, EventItem, HeroAd, HeroAdSettings } from './types';
 import { api } from './services/api';
 
 // Components
@@ -35,6 +35,11 @@ export default function App() {
   // Data State
   const [listings, setListings] = useState<Listing[]>([]);
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [heroAds, setHeroAds] = useState<HeroAd[]>([]);
+  const [heroSettings, setHeroSettings] = useState<HeroAdSettings>({
+    mode: 'default',
+    rotationIntervalSeconds: 6,
+  });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [favorites, setFavorites] = useState<string[]>([]);
 
@@ -144,13 +149,91 @@ export default function App() {
       // ignore
     }
 
-    // 3. Fetch listings & events
+    // 3. Fetch listings, events & hero ads
     fetchListings();
     fetchEvents();
+    fetchHeroAds();
 
     // 4. Test Firebase Firestore connection
     testConnection();
   }, []);
+
+  const fetchHeroAds = async () => {
+    try {
+      const data = await api.getHeroAds();
+      if (data) {
+        if (data.settings) setHeroSettings(data.settings);
+        if (Array.isArray(data.ads)) setHeroAds(data.ads);
+      }
+    } catch {
+      // Graceful fallback
+    }
+  };
+
+  const handleUpdateHeroSettings = async (newSettings: Partial<HeroAdSettings>) => {
+    try {
+      const updated = await api.updateHeroAdSettings(newSettings);
+      setHeroSettings(updated);
+      showToast(
+        updated.mode === 'default'
+          ? 'Hero set to default marketplace welcome'
+          : updated.mode === 'rotate'
+          ? 'Hero rotation mode enabled!'
+          : 'Hero promotional ads mode enabled!',
+        'success'
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update hero settings';
+      showToast(msg, 'error');
+    }
+  };
+
+  const handleCreateHeroAd = async (ad: Partial<HeroAd>) => {
+    try {
+      const created = await api.createHeroAd(ad);
+      setHeroAds((prev) => [created, ...prev]);
+      showToast('Hero Animated Ad published successfully!', 'success');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create hero ad';
+      showToast(msg, 'error');
+    }
+  };
+
+  const handleUpdateHeroAd = async (id: string, ad: Partial<HeroAd>) => {
+    try {
+      const updated = await api.updateHeroAd(id, ad);
+      setHeroAds((prev) => prev.map((a) => (a.id === id ? updated : a)));
+      showToast('Hero Animated Ad updated!', 'success');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update hero ad';
+      showToast(msg, 'error');
+    }
+  };
+
+  const handleToggleHeroAd = async (id: string) => {
+    try {
+      const updated = await api.toggleHeroAd(id);
+      setHeroAds((prev) => prev.map((a) => (a.id === id ? updated : a)));
+      showToast(
+        updated.isActive ? 'Hero Ad is now live on marketplace!' : 'Hero Ad paused (inactive)',
+        'info'
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to toggle hero ad';
+      showToast(msg, 'error');
+    }
+  };
+
+  const handleDeleteHeroAd = async (id: string) => {
+    try {
+      await api.deleteHeroAd(id);
+      setHeroAds((prev) => prev.filter((a) => a.id !== id));
+      showToast('Hero Ad deleted', 'info');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete hero ad';
+      showToast(msg, 'error');
+    }
+  };
 
   const fetchEvents = async () => {
     try {
@@ -503,6 +586,11 @@ export default function App() {
               hasActiveFilters={hasActiveFilters}
               selectedCategory={selectedCategory}
               onSelectCategory={setSelectedCategory}
+              heroAds={heroAds}
+              heroSettings={heroSettings}
+              onOpenPostAd={handleOpenPostAd}
+              isAdminLoggedIn={isAdminLoggedIn}
+              onAdminManage={() => setCurrentTab('admin_dashboard')}
             />
 
             {/* Category Browser */}
@@ -715,6 +803,13 @@ export default function App() {
           <AdminDashboard
             listings={listings}
             events={events}
+            heroAds={heroAds}
+            heroSettings={heroSettings}
+            onUpdateHeroSettings={handleUpdateHeroSettings}
+            onCreateHeroAd={handleCreateHeroAd}
+            onUpdateHeroAd={handleUpdateHeroAd}
+            onToggleHeroAd={handleToggleHeroAd}
+            onDeleteHeroAd={handleDeleteHeroAd}
             onApprove={handleApproveListing}
             onReject={handleRejectListing}
             onToggleFeature={handleToggleFeatureListing}

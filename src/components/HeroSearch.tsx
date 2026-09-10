@@ -12,6 +12,8 @@ import {
   Briefcase,
   Layers,
 } from 'lucide-react';
+import { HeroAd, HeroAdSettings } from '../types';
+import { HeroAdBanner } from './HeroAdBanner';
 
 interface HeroSearchProps {
   searchTerm: string;
@@ -26,6 +28,11 @@ interface HeroSearchProps {
   hasActiveFilters: boolean;
   selectedCategory?: string;
   onSelectCategory?: (category: string) => void;
+  heroAds?: HeroAd[];
+  heroSettings?: HeroAdSettings;
+  onOpenPostAd?: () => void;
+  isAdminLoggedIn?: boolean;
+  onAdminManage?: () => void;
 }
 
 const DISTRICTS = [
@@ -90,6 +97,11 @@ export const HeroSearch: React.FC<HeroSearchProps> = ({
   hasActiveFilters,
   selectedCategory = 'All',
   onSelectCategory,
+  heroAds = [],
+  heroSettings = { mode: 'default', rotationIntervalSeconds: 6 },
+  onOpenPostAd,
+  isAdminLoggedIn,
+  onAdminManage,
 }) => {
   const handleTabClick = (catId: string) => {
     if (onSelectCategory) {
@@ -136,27 +148,15 @@ export const HeroSearch: React.FC<HeroSearchProps> = ({
       />
 
       <div className="relative max-w-5xl mx-auto space-y-6 text-center">
-        {/* Animated Headline */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="space-y-2.5"
-        >
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-xs font-semibold text-gray-300 border border-white/10 mb-1">
-            <Sparkles className="w-3.5 h-3.5 text-[#FF5A36]" />
-            <span>Sri Lanka's Direct Buyer-Seller Marketplace</span>
-          </div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
-            Find Anything in{' '}
-            <span className="text-[#FF5A36] underline decoration-wavy decoration-[#FF5A36]/40 underline-offset-8">
-              Sri Lanka
-            </span>
-          </h1>
-          <p className="text-gray-400 text-xs sm:text-sm max-w-xl mx-auto font-medium">
-            Properties, Vehicles, Classifieds, Jobs & Local Services across all 25 districts with direct WhatsApp & telephone contact.
-          </p>
-        </motion.div>
+        {/* Hero Title & Admin Animated Ads Slot */}
+        <HeroAdBanner
+          heroAds={heroAds}
+          heroSettings={heroSettings}
+          onSelectCategory={onSelectCategory}
+          onOpenPostAd={onOpenPostAd}
+          isAdminLoggedIn={isAdminLoggedIn}
+          onAdminManage={onAdminManage}
+        />
 
         {/* Qatar Living Signature Tabbed Search Card */}
         <div className="max-w-4xl mx-auto">
