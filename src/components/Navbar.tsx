@@ -11,6 +11,7 @@ import {
   Briefcase,
   Wrench,
   ShoppingBag,
+  Smartphone,
 } from 'lucide-react';
 import { ViewTab } from '../types';
 
@@ -20,6 +21,7 @@ interface NavbarProps {
   onSelectCategory?: (category: string) => void;
   onOpenPostAd?: () => void;
   onOpenUserAuth?: () => void;
+  onOpenAppStore?: () => void;
   currentUser?: { name: string; email: string } | null;
   selectedLocation?: string;
   onLocationChange?: (location: string) => void;
@@ -43,6 +45,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectCategory,
   onOpenPostAd,
   onOpenUserAuth,
+  onOpenAppStore,
   currentUser,
   selectedLocation = 'All Sri Lanka',
   onLocationChange,
@@ -98,6 +101,22 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden xs:inline">Community:</span>
               <span className="text-[#FF5A36] font-bold">HUTA IN</span>
             </button>
+
+            {onOpenAppStore && (
+              <>
+                <span className="text-[#2D2F39]">|</span>
+                <button
+                  type="button"
+                  onClick={onOpenAppStore}
+                  className="inline-flex items-center gap-1 text-gray-300 hover:text-white transition-colors cursor-pointer"
+                  title="Google Play and App Store"
+                >
+                  <Smartphone className="w-3.5 h-3.5 text-[#FF5A36]" />
+                  <span className="hidden sm:inline">Get Mobile App</span>
+                  <span className="sm:hidden text-[11px] font-bold text-[#FF5A36]">App</span>
+                </button>
+              </>
+            )}
 
             <span className="text-[#2D2F39]">|</span>
 
@@ -275,6 +294,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right: Post an Ad button (Iconic Qatar Living feature) */}
         <div className="flex items-center gap-2">
+          {onOpenAppStore && (
+            <button
+              type="button"
+              onClick={onOpenAppStore}
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-gray-200 hover:text-white border border-white/10 text-xs font-bold transition-all cursor-pointer"
+              title="Google Play and App Store"
+            >
+              <Smartphone className="w-3.5 h-3.5 text-[#FF5A36]" />
+              <span>Get App</span>
+            </button>
+          )}
+
           {onOpenPostAd && (
             <motion.button
               type="button"

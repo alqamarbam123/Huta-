@@ -322,16 +322,41 @@ export const api = {
 
   // Events & Upcoming Spotlight
   async getEvents(params?: { category?: string; district?: string; spotlight?: boolean }): Promise<EventItem[]> {
-    const searchParams = new URLSearchParams();
-    if (params?.category) searchParams.set('category', params.category);
-    if (params?.district) searchParams.set('district', params.district);
-    if (params?.spotlight !== undefined) searchParams.set('spotlight', String(params.spotlight));
+    try {
+      const searchParams = new URLSearchParams();
+      if (params?.category) searchParams.set('category', params.category);
+      if (params?.district) searchParams.set('district', params.district);
+      if (params?.spotlight !== undefined) searchParams.set('spotlight', String(params.spotlight));
 
-    const res = await fetch(`${API_BASE}/events?${searchParams.toString()}`);
-    if (!res.ok) {
-      throw new Error(`Failed to fetch events: ${res.statusText}`);
+      const res = await fetch(`${API_BASE}/events?${searchParams.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          try {
+            localStorage.setItem('huta_cached_events', JSON.stringify(data));
+          } catch {
+            // ignore
+          }
+          return data;
+        }
+      }
+    } catch {
+      // Ignore network errors and try local cache
     }
-    return res.json();
+
+    try {
+      const cached = localStorage.getItem('huta_cached_events');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    return [];
   },
 
   async createEvent(data: Partial<EventItem>): Promise<EventItem> {

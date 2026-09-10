@@ -19,7 +19,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Maximize2,
-  Camera
+  Camera,
+  ArrowLeftRight
 } from 'lucide-react';
 import { formatLKR } from './ListingsSection';
 
@@ -34,6 +35,8 @@ interface AdDetailModalProps {
   onDeleteListing: (id: string) => void;
   onCopyShareLink: (listing: Listing) => void;
   onStartChat?: (listing: Listing) => void;
+  isCompared?: boolean;
+  onToggleCompare?: (listing: Listing) => void;
 }
 
 export const AdDetailModal: React.FC<AdDetailModalProps> = ({
@@ -47,6 +50,8 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
   onDeleteListing,
   onCopyShareLink,
   onStartChat,
+  isCompared = false,
+  onToggleCompare,
 }) => {
   if (!listing) return null;
 
@@ -235,15 +240,29 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
                     type="button"
                     onClick={() => onCopyShareLink(listing)}
                     title="Share listing"
-                    className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors"
+                    className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors cursor-pointer"
                   >
                     <Share2 className="w-4 h-4" />
                   </button>
+                  {onToggleCompare && (
+                    <button
+                      type="button"
+                      onClick={() => onToggleCompare(listing)}
+                      title={isCompared ? 'Remove from comparison' : 'Compare with other ads'}
+                      className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
+                        isCompared
+                          ? 'bg-[#FF5A36] text-white shadow-sm'
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      }`}
+                    >
+                      <ArrowLeftRight className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => onToggleFavorite(listing.id)}
                     title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
+                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
                       isFavorite
                         ? 'bg-rose-50 text-rose-600'
                         : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
@@ -362,6 +381,22 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
                     <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded text-white font-medium">
                       Real-time
                     </span>
+                  </button>
+                )}
+
+                {/* Compare Button */}
+                {onToggleCompare && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleCompare(listing)}
+                    className={`mt-2 w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 px-4 rounded-lg border transition-all cursor-pointer ${
+                      isCompared
+                        ? 'bg-[#FF5A36]/10 text-[#FF5A36] border-[#FF5A36]/40 hover:bg-[#FF5A36]/20'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <ArrowLeftRight className="w-3.5 h-3.5" />
+                    <span>{isCompared ? 'Remove from Comparison' : 'Add to Compare (Side-by-Side)'}</span>
                   </button>
                 )}
               </div>

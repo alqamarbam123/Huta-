@@ -1,11 +1,12 @@
 import React from 'react';
-import { ShieldCheck, MapPin, PhoneCall, HelpCircle, Heart, Lock } from 'lucide-react';
+import { ShieldCheck, MapPin, PhoneCall, HelpCircle, Heart, Lock, Smartphone } from 'lucide-react';
 
 interface FooterProps {
   onSelectCategory: (cat: string) => void;
   onSelectLocation: (loc: string) => void;
   onOpenPostAd: () => void;
   onOpenAdminLogin: () => void;
+  onOpenAppStore?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -13,6 +14,7 @@ export const Footer: React.FC<FooterProps> = ({
   onSelectLocation,
   onOpenPostAd,
   onOpenAdminLogin,
+  onOpenAppStore,
 }) => {
   return (
     <footer className="bg-[#111217] text-gray-300 border-t border-[#2D2F39]/60 mt-10 sm:mt-12 pt-8 sm:pt-9 pb-6">
@@ -55,6 +57,19 @@ export const Footer: React.FC<FooterProps> = ({
                 All 25 Districts
               </span>
             </div>
+
+            {onOpenAppStore && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={onOpenAppStore}
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-[#FF5A36] text-white text-xs font-bold transition-all border border-white/10 cursor-pointer group"
+                >
+                  <Smartphone className="w-3.5 h-3.5 text-[#FF5A36] group-hover:text-white transition-colors" />
+                  <span>Get App (Play Store & App Store)</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Popular Categories */}

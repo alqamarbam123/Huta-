@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Plus, LayoutGrid, MoreHorizontal } from 'lucide-react';
+import { Home, Plus, LayoutGrid, MoreHorizontal, Sparkles } from 'lucide-react';
 import { ViewTab } from '../types';
 
 interface BottomNavProps {
@@ -7,12 +7,14 @@ interface BottomNavProps {
   onSelectTab: (tab: ViewTab) => void;
   onOpenPostAd: () => void;
   unreadChatCount?: number;
+  isAdminLoggedIn?: boolean;
 }
 
 export const BottomNav: React.FC<BottomNavProps> = ({
   currentTab,
   onSelectTab,
   onOpenPostAd,
+  isAdminLoggedIn,
 }) => {
   const isHomeActive = currentTab === 'marketplace';
   const isHutaInActive = currentTab === 'huta_in';
@@ -54,7 +56,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
           </span>
         </button>
 
-        {/* 2. HUTA IN (Matching Image 1: stylized "HUTA" + orange "IN") */}
+        {/* 2. HUTA IN */}
         <button
           type="button"
           id="nav-tab-huta-in"
@@ -63,27 +65,22 @@ export const BottomNav: React.FC<BottomNavProps> = ({
             isHutaInActive ? 'text-[#FF5A36]' : 'text-gray-500 hover:text-gray-800'
           }`}
         >
-          <div className="relative flex flex-col items-center">
-            <div className="flex flex-col items-center justify-center leading-none">
-              <span className="text-[9px] font-bold text-gray-700 uppercase tracking-tight">HUTA</span>
-              <span
-                className={`text-sm font-black tracking-tighter transition-transform group-active:scale-90 ${
-                  isHutaInActive ? 'text-[#FF5A36]' : 'text-[#FF5A36]/90'
-                }`}
-              >
-                IN
-              </span>
-            </div>
+          <div className="relative">
+            <Sparkles
+              className={`w-6 h-6 transition-transform group-active:scale-90 ${
+                isHutaInActive ? 'stroke-[2.5]' : 'stroke-[2]'
+              }`}
+            />
             {isHutaInActive && (
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-[#FF5A36] rounded-full" />
             )}
           </div>
           <span
-            className={`text-[11px] mt-0.5 font-bold tracking-tight ${
-              isHutaInActive ? 'text-[#FF5A36]' : 'text-gray-600'
+            className={`text-[11px] mt-1 font-bold tracking-tight ${
+              isHutaInActive ? 'text-[#FF5A36]' : 'text-gray-700'
             }`}
           >
-            HUTA in
+            HUTA <span className="text-[#FF5A36] font-black">in</span>
           </span>
         </button>
 
@@ -108,7 +105,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
         <button
           type="button"
           id="nav-tab-dashboard"
-          onClick={() => onSelectTab('user_dashboard')}
+          onClick={() => onSelectTab(isAdminLoggedIn ? 'admin_dashboard' : 'user_dashboard')}
           className={`flex flex-col items-center justify-center flex-1 py-1 transition-all group ${
             isDashboardActive ? 'text-[#FF5A36]' : 'text-gray-500 hover:text-gray-800'
           }`}

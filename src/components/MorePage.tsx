@@ -20,7 +20,9 @@ import {
   Lock,
   Compass,
   ArrowLeft,
-  Sliders
+  Sliders,
+  Smartphone,
+  Download,
 } from 'lucide-react';
 import { DeviceSettingsPanel } from './DeviceSettingsPanel';
 
@@ -32,6 +34,7 @@ interface MorePageProps {
   onOpenUserAuth: () => void;
   onOpenAdminLogin: () => void;
   onOpenPostAd: () => void;
+  onOpenAppStore?: () => void;
   onOpenChat: () => void;
   onChangePassword: () => void;
   onLogoutUser: () => void;
@@ -48,6 +51,7 @@ export const MorePage: React.FC<MorePageProps> = ({
   onOpenUserAuth,
   onOpenAdminLogin,
   onOpenPostAd,
+  onOpenAppStore,
   onOpenChat,
   onChangePassword,
   onLogoutUser,
@@ -154,6 +158,42 @@ export const MorePage: React.FC<MorePageProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Mobile App Download Card (Google Play & App Store) */}
+        {onOpenAppStore && (
+          <div className="bg-gradient-to-br from-[#12141A] via-[#1B1D25] to-[#12141A] text-white rounded-3xl p-5 sm:p-6 border border-[#2D2F39] shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-[#FF5A36]/15 rounded-full blur-2xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-[#FF5A36] text-white flex items-center justify-center font-black text-xl shadow-lg shadow-[#FF5A36]/30 shrink-0">
+                  <Smartphone className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/10 text-[10px] font-bold uppercase tracking-wider text-[#FF5A36] mb-1">
+                    <Sparkles className="w-2.5 h-2.5" />
+                    Mobile App Ready
+                  </div>
+                  <h3 className="font-black text-base sm:text-lg text-white">
+                    HUTA on Google Play & App Store
+                  </h3>
+                  <p className="text-xs text-gray-300 mt-0.5 max-w-md leading-relaxed">
+                    Install directly to your home screen or download Google Play (.aab) and Apple App Store packages.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                id="more-open-app-store-btn"
+                onClick={onOpenAppStore}
+                className="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#FF5A36] hover:bg-[#E04826] active:scale-95 text-white font-extrabold text-xs shadow-md transition-all cursor-pointer"
+              >
+                <Download className="w-4 h-4" />
+                <span>Get App / Instructions</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* 1. Account Status Card */}
         <div className="bg-white rounded-3xl p-5 sm:p-6 border border-gray-100 shadow-sm">

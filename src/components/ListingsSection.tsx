@@ -15,7 +15,8 @@ import {
   PlusCircle,
   Sparkles,
   RotateCcw,
-  Images
+  Images,
+  ArrowLeftRight
 } from 'lucide-react';
 
 interface ListingsSectionProps {
@@ -31,6 +32,8 @@ interface ListingsSectionProps {
   onResetFilters?: () => void;
   currentCategory?: string;
   onSelectCategory?: (category: string) => void;
+  compareIds?: string[];
+  onToggleCompare?: (listing: Listing) => void;
 }
 
 export function formatLKR(amount: number): string {
@@ -73,6 +76,8 @@ export const ListingsSection: React.FC<ListingsSectionProps> = ({
   onResetFilters,
   currentCategory = 'All',
   onSelectCategory,
+  compareIds = [],
+  onToggleCompare,
 }) => {
   const isNewAd = (dateStr: string) => {
     try {
@@ -227,6 +232,7 @@ export const ListingsSection: React.FC<ListingsSectionProps> = ({
         >
           {listings.map((item) => {
             const isFav = favorites.includes(item.id);
+            const isCompared = compareIds?.includes(item.id) || false;
             const isNew = isNewAd(item.date);
 
             return (
@@ -265,24 +271,46 @@ export const ListingsSection: React.FC<ListingsSectionProps> = ({
                   )}
                 </div>
 
-                {/* Favorite Heart Button */}
-                <motion.button
-                  type="button"
-                  whileHover={{ scale: 1.15 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleFavorite(item.id);
-                  }}
-                  title={isFav ? 'Remove from favorites' : 'Add to favorites'}
-                  className={`absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                    isFav
-                      ? 'bg-rose-50 text-rose-600 shadow-sm scale-110'
-                      : 'bg-black/40 text-white hover:bg-black/60'
-                  }`}
-                >
-                  <Heart className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
-                </motion.button>
+                {/* Top Action Buttons (Compare & Favorite) */}
+                <div className="absolute top-2.5 right-2.5 z-10 flex items-center gap-1.5">
+                  {onToggleCompare && (
+                    <motion.button
+                      type="button"
+                      whileHover={{ scale: 1.15 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleCompare(item);
+                      }}
+                      title={isCompared ? 'Remove from compare' : 'Compare this ad'}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                        isCompared
+                          ? 'bg-[#FF5A36] text-white shadow-md scale-105 ring-2 ring-white'
+                          : 'bg-black/40 text-white hover:bg-black/60'
+                      }`}
+                    >
+                      <ArrowLeftRight className="w-3.5 h-3.5" />
+                    </motion.button>
+                  )}
+
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.15 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleFavorite(item.id);
+                    }}
+                    title={isFav ? 'Remove from favorites' : 'Add to favorites'}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+                      isFav
+                        ? 'bg-rose-50 text-rose-600 shadow-sm scale-110'
+                        : 'bg-black/40 text-white hover:bg-black/60'
+                    }`}
+                  >
+                    <Heart className={`w-4 h-4 ${isFav ? 'fill-current' : ''}`} />
+                  </motion.button>
+                </div>
 
                 {/* Card Image */}
                 <div className="w-full h-44 sm:h-48 overflow-hidden bg-gray-100 relative">

@@ -19,6 +19,10 @@ import { BottomNav } from './components/BottomNav';
 import { AllCategoriesPage } from './components/AllCategoriesPage';
 import { HutaInPage } from './components/HutaInPage';
 import { MorePage } from './components/MorePage';
+import { CompareModal } from './components/CompareModal';
+import { CompareFloatingBar } from './components/CompareFloatingBar';
+import { AppStoreModal } from './components/AppStoreModal';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
 import { testConnection } from './firebase';
 import { MapPin, Sparkles, PlusCircle, Calendar, ArrowRight, Star } from 'lucide-react';
 
@@ -53,6 +57,7 @@ export default function App() {
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState<boolean>(false);
   const [isUserAuthOpen, setIsUserAuthOpen] = useState<boolean>(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState<boolean>(false);
+  const [isAppStoreOpen, setIsAppStoreOpen] = useState<boolean>(false);
 
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -69,6 +74,56 @@ export default function App() {
   const dismissToast = (id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
+
+  // Side-by-Side Comparison State
+  const [compareIds, setCompareIds] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('huta_compare_ids');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [isCompareModalOpen, setIsCompareModalOpen] = useState<boolean>(false);
+
+  // Save comparison IDs to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('huta_compare_ids', JSON.stringify(compareIds));
+    } catch {
+      // ignore
+    }
+  }, [compareIds]);
+
+  // Derive compared listings objects
+  const compareListings = useMemo(() => {
+    return listings.filter((item) => compareIds.includes(item.id));
+  }, [listings, compareIds]);
+
+  const handleToggleCompare = useCallback((listing: Listing) => {
+    setCompareIds((prev) => {
+      if (prev.includes(listing.id)) {
+        showToast(`Removed "${listing.title.substring(0, 24)}..." from comparison`, 'info');
+        return prev.filter((id) => id !== listing.id);
+      } else {
+        if (prev.length >= 4) {
+          showToast('You can compare up to 4 ads at once. Remove one to add another.', 'error');
+          return prev;
+        }
+        showToast(`Added "${listing.title.substring(0, 24)}..." to comparison`, 'success');
+        return [...prev, listing.id];
+      }
+    });
+  }, [showToast]);
+
+  const handleRemoveFromCompare = useCallback((id: string) => {
+    setCompareIds((prev) => prev.filter((item) => item !== id));
+  }, []);
+
+  const handleClearCompare = useCallback(() => {
+    setCompareIds([]);
+    showToast('Comparison cleared', 'info');
+  }, [showToast]);
 
   // Initial Data & Session Load
   useEffect(() => {
@@ -100,9 +155,11 @@ export default function App() {
   const fetchEvents = async () => {
     try {
       const data = await api.getEvents();
-      setEvents(data);
-    } catch (err) {
-      console.error('Could not fetch events', err);
+      if (Array.isArray(data)) {
+        setEvents(data);
+      }
+    } catch {
+      // Graceful fallback without noisy errors
     }
   };
 
@@ -425,6 +482,7 @@ export default function App() {
         selectedLocation={selectedLocation}
         onLocationChange={setSelectedLocation}
         activeCategory={selectedCategory}
+        onOpenAppStore={() => setIsAppStoreOpen(true)}
       />
 
       {/* Main Views Container */}
@@ -508,6 +566,8 @@ export default function App() {
               onResetFilters={handleResetFilters}
               currentCategory={selectedCategory}
               onSelectCategory={setSelectedCategory}
+              compareIds={compareIds}
+              onToggleCompare={handleToggleCompare}
             />
 
             {/* HUTA IN Community & Events Hub Teaser Banner */}
@@ -611,6 +671,7 @@ export default function App() {
             onOpenUserAuth={() => setIsUserAuthOpen(true)}
             onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
             onOpenPostAd={handleOpenPostAd}
+            onOpenAppStore={() => setIsAppStoreOpen(true)}
             onOpenChat={() => {
               setChatTargetListing(null);
               setIsChatOpen(true);
@@ -626,6 +687,7 @@ export default function App() {
         {currentTab === 'user_dashboard' && (
           <UserDashboard
             currentUser={currentUser}
+            isAdminLoggedIn={isAdminLoggedIn}
             listings={listings}
             favorites={favorites}
             onToggleFavorite={handleToggleFavorite}
@@ -633,9 +695,19 @@ export default function App() {
             onDeleteListing={handleDeleteListing}
             onSelectListing={handleSelectListing}
             onOpenPostAd={handleOpenPostAd}
+            onOpenAppStore={() => setIsAppStoreOpen(true)}
             onChangePassword={() => setIsChangePasswordOpen(true)}
             onLogoutUser={handleLogoutUser}
             onBackToMarketplace={() => setCurrentTab('marketplace')}
+            onOpenUserAuth={() => setIsUserAuthOpen(true)}
+            onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+            onOpenAdminDashboard={() => setCurrentTab('admin_dashboard')}
+            onOpenChat={() => {
+              setChatTargetListing(null);
+              setIsChatOpen(true);
+            }}
+            onSelectTab={(tab) => setCurrentTab(tab)}
+            onToast={showToast}
           />
         )}
 
@@ -702,10 +774,33 @@ export default function App() {
         onEditListing={handleEditListing}
         onDeleteListing={handleDeleteListing}
         onCopyShareLink={handleCopyShareLink}
+        isCompared={Boolean(selectedListing && compareIds.includes(selectedListing.id))}
+        onToggleCompare={handleToggleCompare}
         onStartChat={(listing) => {
           setSelectedListing(null);
           setChatTargetListing(listing);
           setIsChatOpen(true);
+        }}
+      />
+
+      {/* Compare Floating Bottom Action Bar */}
+      <CompareFloatingBar
+        compareListings={compareListings}
+        onOpenCompareModal={() => setIsCompareModalOpen(true)}
+        onRemoveFromCompare={handleRemoveFromCompare}
+        onClearCompare={handleClearCompare}
+      />
+
+      {/* Side-by-Side Compare Modal */}
+      <CompareModal
+        isOpen={isCompareModalOpen}
+        onClose={() => setIsCompareModalOpen(false)}
+        compareListings={compareListings}
+        onRemoveFromCompare={handleRemoveFromCompare}
+        onClearCompare={handleClearCompare}
+        onSelectListing={(listing) => {
+          setSelectedListing(listing);
+          setIsCompareModalOpen(false);
         }}
       />
 
@@ -764,11 +859,23 @@ export default function App() {
         }}
         onOpenPostAd={handleOpenPostAd}
         onOpenAdminLogin={() => setIsAdminLoginOpen(true)}
+        onOpenAppStore={() => setIsAppStoreOpen(true)}
       />
+
+      {/* Google Play & App Store Modal */}
+      <AppStoreModal
+        isOpen={isAppStoreOpen}
+        onClose={() => setIsAppStoreOpen(false)}
+        onToast={showToast}
+      />
+
+      {/* Floating Install Prompt Banner for Mobile / PWA */}
+      <PWAInstallBanner onOpenAppStore={() => setIsAppStoreOpen(true)} />
 
       {/* Sticky Bottom Navigation Bar (Image 1 style) */}
       <BottomNav
         currentTab={currentTab}
+        isAdminLoggedIn={isAdminLoggedIn}
         onSelectTab={(tab) => {
           setCurrentTab(tab);
           window.scrollTo({ top: 0, behavior: 'smooth' });
