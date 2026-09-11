@@ -202,6 +202,7 @@ export const api = {
     username: string;
     fullname?: string;
     email?: string;
+    phone?: string;
     password: string;
     securityQuestion: string;
     securityAnswer: string;
@@ -224,11 +225,11 @@ export const api = {
     return user;
   },
 
-  async userLogin(username: string, password: string): Promise<User> {
+  async userLogin(identifier: string, password: string): Promise<User> {
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username: identifier, password }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -241,6 +242,61 @@ export const api = {
       // ignore
     }
     return user;
+  },
+
+  async sendMobileOtp(phone: string): Promise<{ success: boolean; message: string; phone: string; devOtp?: string }> {
+    const res = await fetch(`${API_BASE}/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to send OTP code');
+    }
+    return res.json();
+  },
+
+  async verifyMobileOtp(phone: string, otp: string, fullname?: string): Promise<{ success: boolean; message: string; user: User }> {
+    const res = await fetch(`${API_BASE}/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, otp, fullname }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Invalid or expired OTP code');
+    }
+    const data = await res.json();
+    if (data.user) {
+      try {
+        localStorage.setItem('huta_user', JSON.stringify(data.user));
+      } catch {
+        // ignore
+      }
+    }
+    return data;
+  },
+
+  async verifyAdOwnerOtp(listingId: string, phone: string, otp: string, fullname?: string): Promise<{ success: boolean; message: string; user: User; listing: Listing }> {
+    const res = await fetch(`${API_BASE}/auth/verify-ad-owner-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listingId, phone, otp, fullname }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Verification failed');
+    }
+    const data = await res.json();
+    if (data.user) {
+      try {
+        localStorage.setItem('huta_user', JSON.stringify(data.user));
+      } catch {
+        // ignore
+      }
+    }
+    return data;
   },
 
   getCurrentUser(): User | null {

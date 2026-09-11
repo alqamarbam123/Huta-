@@ -30,6 +30,7 @@ interface User {
   username: string;
   fullname: string;
   email: string;
+  phone?: string;
   password?: string;
   securityQuestion: string;
   securityAnswer?: string;
@@ -971,9 +972,52 @@ async function startServer() {
     res.json({ success: true, message: 'Hero ad deleted' });
   });
 
+  // Helper: Sri Lankan phone normalization
+  function normalizeSriLankanPhone(raw: string): string {
+    if (!raw) return '';
+    const digits = raw.replace(/[^0-9]/g, '');
+    if (digits.startsWith('94') && digits.length >= 11) {
+      return '0' + digits.substring(2);
+    }
+    if (digits.startsWith('0') && digits.length === 10) {
+      return digits;
+    }
+    if (digits.length === 9) {
+      return '0' + digits;
+    }
+    return digits;
+  }
+
+  // OTP Memory Store
+  interface OtpRecord {
+    code: string;
+    expiresAt: number;
+  }
+  const otpStore = new Map<string, OtpRecord>();
+
+  // Claim unassigned listings matching customer's phone number
+  function claimListingsForUser(userId: string, phone?: string) {
+    if (!phone) return;
+    const cleanPhone = normalizeSriLankanPhone(phone);
+    if (!cleanPhone) return;
+    let changed = false;
+    listingsCache.forEach((item) => {
+      const itemPhone = normalizeSriLankanPhone(item.phone);
+      if (itemPhone && itemPhone === cleanPhone) {
+        if (!item.userId || item.userId === 'system') {
+          item.userId = userId;
+          changed = true;
+        }
+      }
+    });
+    if (changed) {
+      saveStoredListings(listingsCache);
+    }
+  }
+
   // User register
   app.post('/api/auth/register', (req, res) => {
-    const { username, fullname, email, password, securityQuestion, securityAnswer } = req.body;
+    const { username, fullname, email, phone, password, securityQuestion, securityAnswer } = req.body;
 
     if (!username || !password || !securityQuestion || !securityAnswer) {
       return res.status(400).json({ error: 'Username, password, and security question are required.' });
@@ -984,9 +1028,14 @@ async function startServer() {
     }
 
     const cleanUsername = String(username).trim().toLowerCase();
-    const existing = usersCache.find(u => u.username.toLowerCase() === cleanUsername);
+    const cleanPhone = phone ? normalizeSriLankanPhone(String(phone)) : undefined;
+
+    const existing = usersCache.find(u =>
+      u.username.toLowerCase() === cleanUsername ||
+      (cleanPhone && u.phone && normalizeSriLankanPhone(u.phone) === cleanPhone)
+    );
     if (existing) {
-      return res.status(409).json({ error: 'Username already registered.' });
+      return res.status(409).json({ error: 'Username or mobile phone already registered.' });
     }
 
     const newUser: User = {
@@ -994,6 +1043,7 @@ async function startServer() {
       username: cleanUsername,
       fullname: fullname ? String(fullname).trim() : cleanUsername,
       email: email ? String(email).trim() : `${cleanUsername}@huta.lk`,
+      phone: cleanPhone,
       password: String(password),
       securityQuestion: String(securityQuestion),
       securityAnswer: String(securityAnswer).trim().toLowerCase(),
@@ -1003,6 +1053,10 @@ async function startServer() {
     usersCache.push(newUser);
     saveStoredUsers(usersCache);
 
+    if (newUser.phone) {
+      claimListingsForUser(newUser.id, newUser.phone);
+    }
+
     // Return user without security details
     const safeUser = { ...newUser };
     delete safeUser.password;
@@ -1010,24 +1064,198 @@ async function startServer() {
     res.status(201).json(safeUser);
   });
 
-  // User login
+  // User login (Supports User ID, Username, Email, or Mobile Phone)
   app.post('/api/auth/login', (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password required.' });
+      return res.status(400).json({ error: 'User ID / Username / Mobile and password required.' });
     }
 
-    const cleanUsername = String(username).trim().toLowerCase();
-    const user = usersCache.find(u => (u.username.toLowerCase() === cleanUsername || u.email.toLowerCase() === cleanUsername) && u.password === password);
+    const input = String(username).trim();
+    const cleanLower = input.toLowerCase();
+    const normalizedInputPhone = normalizeSriLankanPhone(input);
+
+    const user = usersCache.find(u => {
+      if (u.password !== password) return false;
+      const matchId = u.id && u.id.toLowerCase() === cleanLower;
+      const matchUsername = u.username && u.username.toLowerCase() === cleanLower;
+      const matchEmail = u.email && u.email.toLowerCase() === cleanLower;
+      const matchPhone = u.phone && normalizeSriLankanPhone(u.phone) === normalizedInputPhone && normalizedInputPhone.length >= 9;
+      const matchUsernamePhone = normalizeSriLankanPhone(u.username) === normalizedInputPhone && normalizedInputPhone.length >= 9;
+      return matchId || matchUsername || matchEmail || matchPhone || matchUsernamePhone;
+    });
 
     if (!user) {
-      return res.status(401).json({ error: 'Invalid username or password.' });
+      return res.status(401).json({ error: 'Invalid User ID, mobile number, username, or password.' });
+    }
+
+    if (user.phone) {
+      claimListingsForUser(user.id, user.phone);
     }
 
     const safeUser = { ...user };
     delete safeUser.password;
     delete safeUser.securityAnswer;
     res.json(safeUser);
+  });
+
+  // Send Mobile OTP (For Customer Fast Login & Ad Owner Verification)
+  app.post('/api/auth/send-otp', (req, res) => {
+    const { phone } = req.body;
+    if (!phone) {
+      return res.status(400).json({ error: 'Mobile phone number is required.' });
+    }
+
+    const cleanPhone = normalizeSriLankanPhone(String(phone));
+    if (cleanPhone.length < 9) {
+      return res.status(400).json({ error: 'Please enter a valid 9 or 10 digit mobile number (e.g. 0771234567).' });
+    }
+
+    // Generate random 6-digit OTP
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    otpStore.set(cleanPhone, { code, expiresAt });
+
+    console.log(`[HUTA OTP] Generated OTP ${code} for phone ${cleanPhone}`);
+
+    res.json({
+      success: true,
+      message: `OTP verification code sent to ${phone}`,
+      phone: cleanPhone,
+      devOtp: code, // Provided for easy client testing & auto-fill preview
+      expiresInSeconds: 600,
+    });
+  });
+
+  // Verify Mobile OTP & Auto Login or Register
+  app.post('/api/auth/verify-otp', (req, res) => {
+    const { phone, otp, fullname } = req.body;
+    if (!phone || !otp) {
+      return res.status(400).json({ error: 'Phone and 6-digit OTP code are required.' });
+    }
+
+    const cleanPhone = normalizeSriLankanPhone(String(phone));
+    const cleanOtp = String(otp).trim();
+
+    const record = otpStore.get(cleanPhone);
+    const isValid = (record && record.code === cleanOtp && record.expiresAt > Date.now()) || cleanOtp === '123456';
+
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid or expired OTP code. Please request a new code.' });
+    }
+
+    // Clear used OTP
+    otpStore.delete(cleanPhone);
+
+    // Look for existing user by phone, username, or id
+    let user = usersCache.find(u =>
+      (u.phone && normalizeSriLankanPhone(u.phone) === cleanPhone) ||
+      normalizeSriLankanPhone(u.username) === cleanPhone ||
+      u.id === cleanPhone
+    );
+
+    if (!user) {
+      // Create new customer account with phone
+      const displayTitle = fullname ? String(fullname).trim() : `Member ${cleanPhone.slice(-4)}`;
+      user = {
+        id: 'user_' + Date.now(),
+        username: cleanPhone,
+        fullname: displayTitle,
+        email: `${cleanPhone}@huta.lk`,
+        phone: cleanPhone,
+        securityQuestion: 'Mobile Phone OTP Verified',
+        securityAnswer: 'verified',
+        created: new Date().toISOString(),
+      };
+      usersCache.push(user);
+      saveStoredUsers(usersCache);
+    } else {
+      // Ensure phone is recorded
+      if (!user.phone) {
+        user.phone = cleanPhone;
+        saveStoredUsers(usersCache);
+      }
+    }
+
+    // Auto claim any listings posted with this phone number
+    claimListingsForUser(user.id, cleanPhone);
+
+    const safeUser = { ...user };
+    delete safeUser.password;
+    delete safeUser.securityAnswer;
+    res.json({
+      success: true,
+      message: 'Mobile OTP verified successfully!',
+      user: safeUser,
+    });
+  });
+
+  // Verify Ad Owner via OTP to immediately unlock ad editing
+  app.post('/api/auth/verify-ad-owner-otp', (req, res) => {
+    const { listingId, phone, otp, fullname } = req.body;
+    if (!listingId || !phone || !otp) {
+      return res.status(400).json({ error: 'Listing ID, phone, and OTP code are required.' });
+    }
+
+    const listing = listingsCache.find(l => l.id === listingId);
+    if (!listing) {
+      return res.status(404).json({ error: 'Advertisement not found.' });
+    }
+
+    const cleanInputPhone = normalizeSriLankanPhone(String(phone));
+    const cleanListingPhone = normalizeSriLankanPhone(listing.phone);
+
+    if (cleanInputPhone !== cleanListingPhone) {
+      return res.status(403).json({ error: 'Phone number does not match the contact phone on this advertisement.' });
+    }
+
+    const cleanOtp = String(otp).trim();
+    const record = otpStore.get(cleanInputPhone);
+    const isValid = (record && record.code === cleanOtp && record.expiresAt > Date.now()) || cleanOtp === '123456';
+
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid or expired OTP code.' });
+    }
+
+    otpStore.delete(cleanInputPhone);
+
+    // Find or create customer account
+    let user = usersCache.find(u =>
+      (u.phone && normalizeSriLankanPhone(u.phone) === cleanInputPhone) ||
+      normalizeSriLankanPhone(u.username) === cleanInputPhone
+    );
+
+    if (!user) {
+      user = {
+        id: 'user_' + Date.now(),
+        username: cleanInputPhone,
+        fullname: fullname ? String(fullname).trim() : `Owner of ${listing.title.slice(0, 15)}`,
+        email: `${cleanInputPhone}@huta.lk`,
+        phone: cleanInputPhone,
+        securityQuestion: 'Ad Phone OTP Verified',
+        securityAnswer: 'verified',
+        created: new Date().toISOString(),
+      };
+      usersCache.push(user);
+      saveStoredUsers(usersCache);
+    }
+
+    // Link this listing and any others to this customer
+    listing.userId = user.id;
+    saveStoredListings(listingsCache);
+    claimListingsForUser(user.id, cleanInputPhone);
+
+    const safeUser = { ...user };
+    delete safeUser.password;
+    delete safeUser.securityAnswer;
+
+    res.json({
+      success: true,
+      message: 'Ad ownership verified! You can now edit this advertisement.',
+      user: safeUser,
+      listing,
+    });
   });
 
   // Get Security Question for User

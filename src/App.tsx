@@ -59,6 +59,7 @@ export default function App() {
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [isPostAdOpen, setIsPostAdOpen] = useState<boolean>(false);
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
+  const [targetListingForEdit, setTargetListingForEdit] = useState<Listing | null>(null);
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState<boolean>(false);
   const [isUserAuthOpen, setIsUserAuthOpen] = useState<boolean>(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState<boolean>(false);
@@ -505,6 +506,17 @@ export default function App() {
   const handleUserAuthSuccess = (user: User) => {
     setCurrentUser(user);
     showToast(`Logged in as ${user.fullname || user.username}`, 'success');
+    // Refresh listings to reflect claimed ownership
+    fetchListings();
+
+    // If login was initiated to edit a specific ad:
+    if (targetListingForEdit) {
+      const adToEdit = targetListingForEdit;
+      setTargetListingForEdit(null);
+      setIsUserAuthOpen(false);
+      handleEditListing(adToEdit);
+      showToast(`Ad editing mode enabled for "${adToEdit.title.substring(0, 24)}..."`, 'info');
+    }
   };
 
   const handleLogoutUser = () => {
@@ -871,6 +883,11 @@ export default function App() {
         onCopyShareLink={handleCopyShareLink}
         isCompared={Boolean(selectedListing && compareIds.includes(selectedListing.id))}
         onToggleCompare={handleToggleCompare}
+        onRequestOwnerEdit={(listing) => {
+          setSelectedListing(null);
+          setTargetListingForEdit(listing);
+          setIsUserAuthOpen(true);
+        }}
         onStartChat={(listing) => {
           setSelectedListing(null);
           setChatTargetListing(listing);
@@ -934,11 +951,15 @@ export default function App() {
         onCloseAdminLogin={() => setIsAdminLoginOpen(false)}
         onAdminLoginSuccess={handleAdminLoginSuccess}
         isUserAuthOpen={isUserAuthOpen}
-        onCloseUserAuth={() => setIsUserAuthOpen(false)}
+        onCloseUserAuth={() => {
+          setIsUserAuthOpen(false);
+          setTargetListingForEdit(null);
+        }}
         onUserAuthSuccess={handleUserAuthSuccess}
         isChangePasswordOpen={isChangePasswordOpen}
         onCloseChangePassword={() => setIsChangePasswordOpen(false)}
         currentUser={currentUser}
+        targetListingForEdit={targetListingForEdit}
         onToast={showToast}
       />
 

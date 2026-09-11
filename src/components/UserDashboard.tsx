@@ -76,7 +76,27 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'myads' | 'favorites' | 'sellertips'>('myads');
 
-  const myAds = currentUser ? listings.filter((l) => l.userId === currentUser.id) : [];
+  // Helper to normalize phone numbers
+  const normalizePhone = (raw?: string): string => {
+    if (!raw) return '';
+    const digits = raw.replace(/[^0-9]/g, '');
+    if (digits.startsWith('94') && digits.length >= 11) return '0' + digits.substring(2);
+    if (digits.length === 9) return '0' + digits;
+    return digits;
+  };
+
+  const userPhone = currentUser?.phone ? normalizePhone(currentUser.phone) : '';
+  const userUsernamePhone = currentUser?.username ? normalizePhone(currentUser.username) : '';
+
+  const myAds = currentUser
+    ? listings.filter((l) => {
+        if (l.userId === currentUser.id) return true;
+        const adPhone = normalizePhone(l.phone);
+        if (userPhone && adPhone === userPhone) return true;
+        if (userUsernamePhone && adPhone === userUsernamePhone) return true;
+        return false;
+      })
+    : [];
   const pendingAds = myAds.filter((l) => l.status === 'pending');
   const approvedAds = myAds.filter((l) => l.status === 'approved');
   const totalViews = myAds.reduce((acc, curr) => acc + (curr.views || 0), 0);
@@ -173,6 +193,31 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               )}
             </div>
           </div>
+        </div>
+
+        {/* Quick Edit Ad Banner for Existing Advertisers */}
+        <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-orange-500/10 border border-orange-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#FF5A36] text-white flex items-center justify-center shrink-0 shadow-sm">
+              <Edit className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="font-extrabold text-sm sm:text-base text-gray-950">
+                Need to change or update your posted advertisement?
+              </h4>
+              <p className="text-xs text-gray-600 mt-0.5">
+                Log in with your <strong className="text-[#FF5A36]">Mobile Phone (OTP)</strong> or <strong className="text-gray-900">User ID</strong> to edit your price, photos, or description instantly.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onOpenUserAuth && onOpenUserAuth('login')}
+            className="shrink-0 px-4 py-2.5 bg-[#FF5A36] hover:bg-[#E04826] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer hover:scale-102"
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>Edit My Ads via OTP / ID</span>
+          </button>
         </div>
 
         {/* Benefits Grid */}
@@ -652,17 +697,18 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                         </span>
 
                         {activeTab === 'myads' ? (
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5">
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 onEditListing(item);
                               }}
-                              className="p-1 rounded-md text-gray-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                              title="Edit"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-gray-700 bg-gray-100 hover:bg-[#FF5A36] hover:text-white transition-all cursor-pointer shadow-2xs"
+                              title="Make changes to price, photos, contact, or description"
                             >
                               <Edit className="w-3.5 h-3.5" />
+                              <span>Edit Ad</span>
                             </button>
                             <button
                               type="button"
@@ -670,8 +716,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                                 e.stopPropagation();
                                 onDeleteListing(item.id);
                               }}
-                              className="p-1 rounded-md text-gray-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                              title="Delete"
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                              title="Delete Ad"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>

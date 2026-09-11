@@ -37,6 +37,7 @@ interface AdDetailModalProps {
   onStartChat?: (listing: Listing) => void;
   isCompared?: boolean;
   onToggleCompare?: (listing: Listing) => void;
+  onRequestOwnerEdit?: (listing: Listing) => void;
 }
 
 export const AdDetailModal: React.FC<AdDetailModalProps> = ({
@@ -52,10 +53,30 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
   onStartChat,
   isCompared = false,
   onToggleCompare,
+  onRequestOwnerEdit,
 }) => {
   if (!listing) return null;
 
-  const isOwner = currentUser && listing.userId === currentUser.id;
+  // Normalize phone for comparison
+  const normalizePhone = (raw?: string): string => {
+    if (!raw) return '';
+    const digits = raw.replace(/[^0-9]/g, '');
+    if (digits.startsWith('94') && digits.length >= 11) return '0' + digits.substring(2);
+    if (digits.length === 9) return '0' + digits;
+    return digits;
+  };
+
+  const userPhone = currentUser?.phone ? normalizePhone(currentUser.phone) : '';
+  const userUsernamePhone = currentUser?.username ? normalizePhone(currentUser.username) : '';
+  const adPhone = normalizePhone(listing.phone);
+
+  const isOwner = Boolean(
+    currentUser && (
+      listing.userId === currentUser.id ||
+      (userPhone && adPhone && userPhone === adPhone) ||
+      (userUsernamePhone && adPhone && userUsernamePhone === adPhone)
+    )
+  );
   const canManage = isOwner || isAdminLoggedIn;
 
   const [activeIdx, setActiveIdx] = useState(0);
@@ -402,7 +423,7 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
               </div>
 
               {/* Author / Admin Controls */}
-              {canManage && (
+              {canManage ? (
                 <div className="pt-2 space-y-1.5">
                   {isAdminLoggedIn && (
                     <div className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg flex items-center justify-between">
@@ -431,6 +452,29 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                       <span>Delete Ad</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Customer Self-Service Ad Editing Prompt */
+                <div className="pt-2 border-t border-gray-100 mt-2">
+                  <div className="bg-gradient-to-r from-orange-50/80 via-amber-50/70 to-orange-50/80 border border-orange-200/70 rounded-xl p-3 flex items-center justify-between gap-3 shadow-2xs">
+                    <div className="text-left">
+                      <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                        <Edit className="w-3.5 h-3.5 text-[#FF5A36]" />
+                        <span>Posted this ad?</span>
+                      </p>
+                      <p className="text-[11px] text-gray-500 mt-0.5">
+                        Need to edit price, contact phone, photos or description?
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onRequestOwnerEdit && onRequestOwnerEdit(listing)}
+                      className="shrink-0 px-3 py-2 bg-[#FF5A36] hover:bg-[#E04826] text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer hover:scale-102"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                      <span>Edit Ad</span>
                     </button>
                   </div>
                 </div>

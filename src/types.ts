@@ -25,6 +25,7 @@ export interface User {
   username: string;
   fullname: string;
   email: string;
+  phone?: string;
   password?: string;
   securityQuestion: string;
   securityAnswer?: string;
